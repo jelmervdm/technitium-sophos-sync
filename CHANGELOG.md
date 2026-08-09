@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.4] - 2026-08-09
+
+### Changed
+- Increased default `sophos_timeout` from `15.0` to `30.0` seconds to prevent timeouts when querying large Clientless User tables from Sophos Firewall.
+
+### Added
+- Added `--sophos-timeout` and `--technitium-timeout` options to CLI and environment configuration.
+
 ## [0.1.3] - 2026-08-09
 
 ### Fixed

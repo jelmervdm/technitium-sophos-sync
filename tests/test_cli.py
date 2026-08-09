@@ -47,3 +47,28 @@ def test_cli_once_execution(mock_engine_cls: MagicMock) -> None:
 
     assert result.exit_code == 0
     assert mock_engine.run_sync.call_count == 1
+
+
+@patch("technitium_sophos_sync.cli.SyncEngine")
+def test_cli_timeouts(mock_engine_cls: MagicMock) -> None:
+    """Test specifying timeout CLI options."""
+    mock_engine = mock_engine_cls.return_value
+    mock_engine.run_sync.return_value = SyncResult(total_leases=0, created=0, updated=0)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "--sophos-timeout",
+            "45.0",
+            "--technitium-timeout",
+            "20.0",
+            "--once",
+        ],
+    )
+
+    assert result.exit_code == 0
+    settings_passed = mock_engine_cls.call_args.kwargs["settings"]
+    assert settings_passed.sophos_timeout == 45.0
+    assert settings_passed.technitium_timeout == 20.0
+

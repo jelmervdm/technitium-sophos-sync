@@ -97,6 +97,22 @@ def setup_logging(level_name: str) -> None:
     help="Verify SSL certificate when connecting to Sophos Firewall API",
 )
 @click.option(
+    "--sophos-timeout",
+    "sophos_timeout",
+    type=float,
+    default=None,
+    envvar="SOPHOS_TIMEOUT",
+    help="HTTP request timeout for Sophos Firewall API in seconds (default: 30.0)",
+)
+@click.option(
+    "--technitium-timeout",
+    "technitium_timeout",
+    type=float,
+    default=None,
+    envvar="TECHNITIUM_TIMEOUT",
+    help="HTTP request timeout for Technitium API in seconds (default: 10.0)",
+)
+@click.option(
     "-i",
     "--interval",
     "sync_interval",
@@ -128,6 +144,8 @@ def main(
     static_leases_only: bool | None,
     dry_run: bool | None,
     sophos_verify_ssl: bool | None,
+    sophos_timeout: float | None,
+    technitium_timeout: float | None,
     sync_interval: int | None,
     once: bool,
     log_level: str | None,
@@ -159,6 +177,10 @@ def main(
         settings.dry_run = dry_run
     if sophos_verify_ssl is not None:
         settings.sophos_verify_ssl = sophos_verify_ssl
+    if sophos_timeout is not None:
+        settings.sophos_timeout = sophos_timeout
+    if technitium_timeout is not None:
+        settings.technitium_timeout = technitium_timeout
     if sync_interval is not None:
         settings.sync_interval = sync_interval
     if log_level is not None:

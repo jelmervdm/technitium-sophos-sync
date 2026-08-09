@@ -77,7 +77,7 @@ class Settings(BaseSettings):
         description="Verify SSL certificates when calling Sophos Firewall API",
     )
     sophos_timeout: float = Field(
-        default=15.0,
+        default=30.0,
         description="HTTP request timeout for Sophos Firewall API calls in seconds",
     )
 
