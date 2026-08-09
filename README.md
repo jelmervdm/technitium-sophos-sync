@@ -127,9 +127,11 @@ Options:
 
 ---
 
-## Docker Deployment
+## Docker & Kubernetes Deployment
 
 ### Docker Compose
+
+The included [`docker-compose.yml`](docker-compose.yml) contains all environment variables with defaults:
 
 ```yaml
 version: '3.8'
@@ -142,13 +144,27 @@ services:
     env_file:
       - .env
     environment:
-      - SYNC_INTERVAL=300
+      - TECHNITIUM_URL=${TECHNITIUM_URL:-http://192.168.1.10:5380}
+      - TECHNITIUM_TOKEN=${TECHNITIUM_TOKEN:-}
+      - SOPHOS_FIREWALL_IP=${SOPHOS_FIREWALL_IP:-192.168.1.1}
+      - SOPHOS_USER=${SOPHOS_USER:-admin}
+      - SOPHOS_PASS=${SOPHOS_PASS:-}
+      - SYNC_INTERVAL=${SYNC_INTERVAL:-300}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
 ```
 
 Run container:
 
 ```bash
 docker compose up -d
+```
+
+### Kubernetes
+
+A base Kubernetes deployment manifest is provided in [`kubernetes.yaml`](kubernetes.yaml), including a `ConfigMap`, `Secret`, and `Deployment`:
+
+```bash
+kubectl apply -f kubernetes.yaml
 ```
 
 ---

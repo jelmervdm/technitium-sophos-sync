@@ -5,10 +5,29 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: technitium-sophos-sync:latest
     container_name: technitium-sophos-sync
     restart: unless-stopped
     env_file:
       - .env
     environment:
+      # Technitium DNS/DHCP Settings
+      - TECHNITIUM_URL=${TECHNITIUM_URL:-http://192.168.1.10:5380}
+      - TECHNITIUM_TOKEN=${TECHNITIUM_TOKEN:-}
+      - TECHNITIUM_TIMEOUT=${TECHNITIUM_TIMEOUT:-10.0}
+
+      # Sophos Firewall Settings
+      - SOPHOS_FIREWALL_IP=${SOPHOS_FIREWALL_IP:-192.168.1.1}
+      - SOPHOS_FIREWALL_PORT=${SOPHOS_FIREWALL_PORT:-4444}
+      - SOPHOS_USER=${SOPHOS_USER:-admin}
+      - SOPHOS_PASS=${SOPHOS_PASS:-}
+      - SOPHOS_CLIENTLESS_GROUP=${SOPHOS_CLIENTLESS_GROUP:-Clientless Open Group}
+      - SOPHOS_API_VERSION=${SOPHOS_API_VERSION:-2200.1}
+      - SOPHOS_VERIFY_SSL=${SOPHOS_VERIFY_SSL:-false}
+      - SOPHOS_TIMEOUT=${SOPHOS_TIMEOUT:-15.0}
+
+      # Sync & Application Settings
+      - STATIC_LEASES_ONLY=${STATIC_LEASES_ONLY:-false}
       - SYNC_INTERVAL=${SYNC_INTERVAL:-300}
+      - DRY_RUN=${DRY_RUN:-false}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
