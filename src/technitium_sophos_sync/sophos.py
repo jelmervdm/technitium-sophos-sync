@@ -84,7 +84,10 @@ class SophosClient:
         top_status_node = root.find("./Status")
         if top_status_node is not None and top_status_node.text:
             top_status_text = top_status_node.text.strip()
-            if "Authentication Failed" in top_status_text or "Authentication Failure" in top_status_text:
+            if (
+                "Authentication Failed" in top_status_text
+                or "Authentication Failure" in top_status_text
+            ):
                 logger.error("Sophos API authentication error: %s", top_status_text)
                 raise SophosClientError(f"Sophos Firewall authentication failed: {top_status_text}")
 
@@ -169,7 +172,7 @@ class SophosClient:
             logger.error("HTTP error upserting Clientless User '%s': %s", name, err)
             raise SophosClientError(f"HTTP error during upsert of '{name}': {err}") from err
 
-        root = self._parse_and_verify_response(response.text)
+        self._parse_and_verify_response(response.text)
 
         text = response.text
         success = (
