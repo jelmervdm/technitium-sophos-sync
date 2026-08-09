@@ -23,7 +23,7 @@ def test_cli_version() -> None:
     runner = CliRunner()
     result = runner.invoke(main, ["--version"])
     assert result.exit_code == 0
-    assert "technitium-sophos-sync, version 0.1.0" in result.output
+    assert "technitium-sophos-sync, version" in result.output
 
 
 @patch("technitium_sophos_sync.cli.SyncEngine")

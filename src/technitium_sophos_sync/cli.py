@@ -186,7 +186,11 @@ def main(
         )
         try:
             while True:
-                engine.run_sync()
+                try:
+                    engine.run_sync()
+                except Exception as err:
+                    logger.error("Error during sync cycle: %s", err)
+
                 logger.info(
                     "Sleeping for %d seconds before next sync cycle...",
                     settings.sync_interval,
