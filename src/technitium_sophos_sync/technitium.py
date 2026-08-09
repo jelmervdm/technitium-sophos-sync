@@ -70,7 +70,7 @@ class TechnitiumClient:
         Raises:
             TechnitiumClientError: On network, HTTP, or API status errors.
         """
-        url = f"{self.base_url}/api/dhcp/scopes/leases/list"
+        url = f"{self.base_url}/api/dhcp/leases/list"
         params = {"token": self.token}
 
         try:
@@ -94,13 +94,17 @@ class TechnitiumClient:
         leases: list[DHCPLease] = []
 
         for lease in raw_leases:
-            is_reserved = bool(lease.get("isReserved", False))
+            is_reserved = bool(
+                lease.get("isReserved", False)
+                or lease.get("isStatic", False)
+                or lease.get("type") == "Reserved"
+            )
             if static_leases_only and not is_reserved:
                 continue
 
-            raw_hostname = lease.get("hostName")
-            raw_mac = lease.get("macAddress")
-            ip_address = lease.get("ipAddress")
+            raw_hostname = lease.get("hostName") or lease.get("hostname") or lease.get("name")
+            raw_mac = lease.get("macAddress") or lease.get("hardwareAddress") or lease.get("mac")
+            ip_address = lease.get("ipAddress") or lease.get("address") or lease.get("ip")
 
             if not ip_address:
                 logger.warning("Skipping lease record without IP address: %s", lease)

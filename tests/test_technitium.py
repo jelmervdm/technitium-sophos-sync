@@ -48,7 +48,7 @@ def test_get_dhcp_leases_success() -> None:
         },
     }
 
-    respx.get("http://technitium.local:5380/api/dhcp/scopes/leases/list").mock(
+    respx.get("http://technitium.local:5380/api/dhcp/leases/list").mock(
         return_value=Response(200, json=mock_response)
     )
 
@@ -88,7 +88,7 @@ def test_get_dhcp_leases_static_only() -> None:
         },
     }
 
-    respx.get("http://technitium.local:5380/api/dhcp/scopes/leases/list").mock(
+    respx.get("http://technitium.local:5380/api/dhcp/leases/list").mock(
         return_value=Response(200, json=mock_response)
     )
 
@@ -104,7 +104,7 @@ def test_get_dhcp_leases_api_error() -> None:
 
     mock_response = {"status": "error", "errorMessage": "Invalid authentication token"}
 
-    respx.get("http://technitium.local:5380/api/dhcp/scopes/leases/list").mock(
+    respx.get("http://technitium.local:5380/api/dhcp/leases/list").mock(
         return_value=Response(200, json=mock_response)
     )
 
