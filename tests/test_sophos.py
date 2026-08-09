@@ -55,7 +55,9 @@ def test_get_existing_clientless_users_auth_failure() -> None:
 
     xml_response = """<?xml version="1.0" encoding="UTF-8"?>
 <Response APIVersion="2200.1">
-    <Status>Authentication Failed</Status>
+    <Login>
+        <status>Authentication Failure</status>
+    </Login>
 </Response>"""
 
     respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
@@ -64,6 +66,30 @@ def test_get_existing_clientless_users_auth_failure() -> None:
 
     with pytest.raises(SophosClientError, match="authentication failed"):
         client.get_existing_clientless_users()
+
+
+@respx.mock
+def test_upsert_clientless_user_auth_failure() -> None:
+    """Test handling authentication failure during upsert."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="wrong_password",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Failure</status>
+    </Login>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    with pytest.raises(SophosClientError, match="authentication failed"):
+        client.upsert_clientless_user("test_user", "192.168.1.50")
+
 
 
 @respx.mock

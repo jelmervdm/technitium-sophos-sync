@@ -51,6 +51,45 @@ class SophosClient:
         if not self.verify_ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+    def _parse_and_verify_response(self, xml_text: str) -> ET.Element:
+        """Parse XML response from Sophos Firewall and verify authentication status.
+
+        Args:
+            xml_text: Raw XML response body.
+
+        Returns:
+            Parsed ElementTree root element.
+
+        Raises:
+            SophosClientError: If XML is invalid or authentication failed.
+        """
+        try:
+            root = ET.fromstring(xml_text)
+        except ET.ParseError as err:
+            logger.error("Failed to parse Sophos API XML response: %s", err)
+            raise SophosClientError(f"Invalid XML returned by Sophos Firewall: {err}") from err
+
+        # Sophos places login status in <Login><status> or <Login><Status>
+        login_status_node = root.find(".//Login/status")
+        if login_status_node is None:
+            login_status_node = root.find(".//Login/Status")
+
+        if login_status_node is not None and login_status_node.text:
+            status_text = login_status_node.text.strip()
+            if status_text != "Authentication Successful":
+                logger.error("Sophos API authentication error: %s", status_text)
+                raise SophosClientError(f"Sophos Firewall authentication failed: {status_text}")
+
+        # Also check root level <Status> for legacy or top-level error messages
+        top_status_node = root.find("./Status")
+        if top_status_node is not None and top_status_node.text:
+            top_status_text = top_status_node.text.strip()
+            if "Authentication Failed" in top_status_text or "Authentication Failure" in top_status_text:
+                logger.error("Sophos API authentication error: %s", top_status_text)
+                raise SophosClientError(f"Sophos Firewall authentication failed: {top_status_text}")
+
+        return root
+
     def get_existing_clientless_users(self) -> dict[str, str]:
         """Query existing Clientless Users from Sophos Firewall.
 
@@ -79,17 +118,8 @@ class SophosClient:
             logger.error("HTTP error while querying Sophos API: %s", err)
             raise SophosClientError(f"HTTP error contacting Sophos Firewall: {err}") from err
 
+        root = self._parse_and_verify_response(response.text)
         existing: dict[str, str] = {}
-        try:
-            root = ET.fromstring(response.text)
-        except ET.ParseError as err:
-            logger.error("Failed to parse Sophos API XML response: %s", err)
-            raise SophosClientError(f"Invalid XML returned by Sophos Firewall: {err}") from err
-
-        # Check authentication/status
-        status_node = root.find(".//Status")
-        if status_node is not None and "Authentication Failed" in (status_node.text or ""):
-            raise SophosClientError("Sophos Firewall authentication failed")
 
         for user in root.findall(".//ClientlessUser"):
             user_name = user.findtext("UserName")
@@ -111,7 +141,7 @@ class SophosClient:
             True if operation succeeded, False otherwise.
 
         Raises:
-            SophosClientError: On connection errors.
+            SophosClientError: On connection errors or authentication failures.
         """
         xml_request = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Request APIVersion="{escape(self.api_version)}">
@@ -139,10 +169,13 @@ class SophosClient:
             logger.error("HTTP error upserting Clientless User '%s': %s", name, err)
             raise SophosClientError(f"HTTP error during upsert of '{name}': {err}") from err
 
+        root = self._parse_and_verify_response(response.text)
+
         text = response.text
         success = (
             "Authentication Successful" in text
             or "<Status>200</Status>" in text
+            or 'code="200"' in text
             or "Configuration updated" in text
             or "User added successfully" in text
         )
@@ -154,3 +187,4 @@ class SophosClient:
             )
 
         return success
+
