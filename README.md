@@ -21,11 +21,20 @@ This allows Sophos Firewall security policies, web filtering, and user-based rep
 
 ---
 
-## Requirements
+## Requirements & Recommended Account Setup
 
 - **Python**: 3.11 or higher
-- **Technitium DNS Server**: API Token generated from the Technitium Web Console (Administration -> API Tokens).
-- **Sophos Firewall (SFOS)**: An admin account with API Access enabled (Options -> API Controller).
+- **Technitium DNS Server**: API Token generated from Technitium Web Console (**Administration -> API Tokens**).
+- **Sophos Firewall (SFOS)**: Administrator account with API Access enabled (**System -> Administration -> API**).
+
+### Sophos Firewall (SFOS) Recommendations
+- **Dedicated Service Account**: Create a dedicated administrator account (e.g. `sync-api-user`) rather than using the default `admin` super-administrator account.
+- **Role Permissions**: Assign an Administrator Profile limited to **Clientless Users** and **User Management** permissions.
+- **API Access Restrictions**: Enable API Access in **System -> Administration -> API** and restrict allowed IP addresses exclusively to the IP or subnet running `technitium-sophos-sync`.
+
+### Technitium DNS Server Recommendations
+- **Dedicated API Token**: Generate a dedicated API token under **Administration -> API Tokens** named `technitium-sophos-sync`.
+- **Token Scope**: Restrict token permissions to DHCP lease read access (`dhcp/leases/get`).
 
 ---
 
