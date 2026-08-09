@@ -1,0 +1,183 @@
+# Technitium to Sophos Firewall Clientless Sync
+
+[![CI](https://github.com/jelmervdm/technitium-sophos-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/jelmervdm/technitium-sophos-sync/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
+An automated utility that synchronizes active DHCP leases from a **Technitium DNS/DHCP Server** to **Sophos Firewall Clientless Users** (SFOS XML APIController).
+
+This allows Sophos Firewall security policies, web filtering, and user-based reporting to automatically map IP addresses to hostnames retrieved dynamically from Technitium DHCP.
+
+---
+
+## Features
+
+- **Automated Synchronization**: Fetches DHCP active leases from Technitium API and maps them to Clientless Users in Sophos Firewall.
+- **Dry-Run Mode**: Inspect changes that would be made before committing any changes to Sophos Firewall.
+- **Daemon / One-Shot Modes**: Run as a one-time cron job or a background daemon with configurable polling intervals.
+- **Static Lease Filtering**: Option to restrict synchronization exclusively to reserved/static DHCP leases.
+- **Robust Sanitize Engine**: Automatically formats device hostnames to conform to Sophos Firewall naming constraints.
+- **Container Ready**: Includes lightweight Docker image and `docker-compose.yml` for effortless deployment.
+
+---
+
+## Requirements
+
+- **Python**: 3.11 or higher
+- **Technitium DNS Server**: API Token generated from the Technitium Web Console (Administration -> API Tokens).
+- **Sophos Firewall (SFOS)**: An admin account with API Access enabled (Options -> API Controller).
+
+---
+
+## Quick Start
+
+### Installation via Pip
+
+```bash
+pip install technitium-sophos-sync
+```
+
+### Environment Configuration
+
+Create a `.env` file or export environment variables:
+
+```bash
+# Technitium DNS/DHCP Server Settings
+TECHNITIUM_URL=http://192.168.1.10:5380
+TECHNITIUM_TOKEN=your_technitium_api_token
+
+# Sophos Firewall Settings
+SOPHOS_FIREWALL_IP=192.168.1.1
+SOPHOS_FIREWALL_PORT=4444
+SOPHOS_USER=admin
+SOPHOS_PASS=your_sophos_admin_password
+SOPHOS_CLIENTLESS_GROUP=Clientless Open Group
+```
+
+### Execution
+
+Run a single synchronization pass in dry-run mode:
+
+```bash
+technitium-sophos-sync --dry-run --once
+```
+
+Execute a live sync:
+
+```bash
+technitium-sophos-sync --once
+```
+
+Run in continuous daemon mode (re-syncing every 5 minutes):
+
+```bash
+technitium-sophos-sync --interval 300
+```
+
+---
+
+## Command-Line Interface
+
+```text
+Usage: technitium-sophos-sync [OPTIONS]
+
+  Technitium DHCP to Sophos Firewall Clientless User Sync utility.
+
+Options:
+  --technitium-url TEXT       Technitium Web Interface URL (default:
+                              http://192.168.1.10:5380)
+  --technitium-token TEXT     Technitium API Token
+  --sophos-ip TEXT            Sophos Firewall Management IP Address
+  --sophos-port INTEGER       Sophos Admin Web Console Port (default: 4444)
+  --sophos-user TEXT          Sophos Firewall API Admin Username (default: admin)
+  --sophos-pass TEXT          Sophos Firewall API Admin Password
+  --clientless-group TEXT     Sophos Clientless User Group Name
+  --static-leases-only / --all-leases
+                              Sync reserved/static leases only
+  --dry-run / --no-dry-run    Log changes without executing API calls against Sophos
+  --verify-ssl / --no-verify-ssl
+                              Verify SSL certificate when connecting to Sophos Firewall API
+  -i, --interval INTEGER      Continuous sync interval in seconds (default: 0)
+  --once                      Force execution to run once and exit
+  -l, --log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]
+                              Set logging verbosity level (default: INFO)
+  -h, --help                  Show this message and exit.
+```
+
+---
+
+## Environment Variables Reference
+
+| Variable | Default | Description |
+|---|---|---|
+| `TECHNITIUM_URL` | `http://192.168.1.10:5380` | Technitium server web console URL |
+| `TECHNITIUM_TOKEN` | *Required* | Technitium API authentication token |
+| `TECHNITIUM_TIMEOUT` | `10.0` | HTTP request timeout for Technitium API (seconds) |
+| `SOPHOS_FIREWALL_IP` | `192.168.1.1` | Sophos Firewall IP address or hostname |
+| `SOPHOS_FIREWALL_PORT` | `4444` | Sophos Firewall API port |
+| `SOPHOS_USER` | `admin` | Sophos Firewall API username |
+| `SOPHOS_PASS` | *Required* | Sophos Firewall API password |
+| `SOPHOS_CLIENTLESS_GROUP` | `Clientless Open Group` | Sophos Group to assign created users |
+| `SOPHOS_VERIFY_SSL` | `false` | Enable/disable SSL certificate validation |
+| `SOPHOS_TIMEOUT` | `15.0` | HTTP request timeout for Sophos API (seconds) |
+| `STATIC_LEASES_ONLY` | `false` | Sync only reserved/static DHCP leases |
+| `SYNC_INTERVAL` | `0` | Daemon mode polling interval in seconds (`0` for single-pass) |
+| `DRY_RUN` | `false` | Test sync logic without modifying Sophos Firewall |
+| `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
+
+---
+
+## Docker Deployment
+
+### Docker Compose
+
+```yaml
+version: '3.8'
+
+services:
+  technitium-sophos-sync:
+    image: ghcr.io/jelmervdm/technitium-sophos-sync:latest
+    container_name: technitium-sophos-sync
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SYNC_INTERVAL=300
+```
+
+Run container:
+
+```bash
+docker compose up -d
+```
+
+---
+
+## Development & Testing
+
+Clone the repository and set up a local development environment with `uv` or `pip`:
+
+```bash
+git clone https://github.com/jelmervdm/technitium-sophos-sync.git
+cd technitium-sophos-sync
+pip install -e ".[dev]"
+```
+
+Run test suite:
+
+```bash
+pytest
+```
+
+Run type checking and linting:
+
+```bash
+mypy src
+ruff check src tests
+```
+
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).

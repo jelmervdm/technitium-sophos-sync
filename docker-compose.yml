@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  technitium-sophos-sync:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: technitium-sophos-sync
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SYNC_INTERVAL=${SYNC_INTERVAL:-300}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}

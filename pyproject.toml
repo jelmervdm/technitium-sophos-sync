@@ -1,0 +1,75 @@
+[project]
+name = "technitium-sophos-sync"
+version = "0.1.0"
+description = "Automated sync utility between Technitium DNS/DHCP server leases and Sophos Firewall Clientless Users"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Jelmer van der Mul"},
+]
+keywords = ["technitium", "sophos", "firewall", "dhcp", "sync", "networking", "security"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Networking :: Firewalls",
+]
+dependencies = [
+    "httpx>=0.25.0",
+    "pydantic>=2.0.0",
+    "pydantic-settings>=2.0.0",
+    "click>=8.0.0",
+    "urllib3>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-mock>=3.12.0",
+    "respx>=0.21.0",
+    "mypy>=1.8.0",
+    "ruff>=0.2.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/jelmervdm/technitium-sophos-sync"
+Repository = "https://github.com/jelmervdm/technitium-sophos-sync"
+Issues = "https://github.com/jelmervdm/technitium-sophos-sync/issues"
+
+[project.scripts]
+technitium-sophos-sync = "technitium_sophos_sync.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["technitium_sophos_sync*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "I", "UP", "N"]
+ignore = []
+
+[tool.semantic_release]
+version_toml = ["pyproject.toml:project.version"]
+tag_format = "v{version}"
