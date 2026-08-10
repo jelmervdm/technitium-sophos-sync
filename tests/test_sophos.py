@@ -397,3 +397,41 @@ def test_upsert_clientless_user_entity_exists_503_retry_success() -> None:
     assert '<Set operation="add">' in req1
     assert '<Set operation="update">' in req2
 
+
+@respx.mock
+def test_get_existing_clientless_users_state() -> None:
+    """Test get_existing_clientless_users_state populates both by_name and by_ip maps."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <UserName>desktop_pc</UserName>
+        <Name>Desktop_PC</Name>
+        <IPAddress>192.168.1.50</IPAddress>
+    </ClientlessUser>
+    <ClientlessUser>
+        <UserName>printer_office</UserName>
+        <IPAddress>192.168.1.200</IPAddress>
+    </ClientlessUser>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    state = client.get_existing_clientless_users_state()
+    assert state.by_name["desktop_pc"] == "192.168.1.50"
+    assert state.by_name["Desktop_PC"] == "192.168.1.50"
+    assert state.by_name["printer_office"] == "192.168.1.200"
+
+    assert state.by_ip["192.168.1.50"] == "desktop_pc"
+    assert state.by_ip["192.168.1.200"] == "printer_office"
+
+

@@ -22,6 +22,7 @@ def test_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.dry_run is False
     assert settings.max_consecutive_failures == 3
     assert settings.exit_on_auth_failure is True
+    assert settings.mac_disambiguation == "duplicates_only"
     assert settings.log_level == "INFO"
     assert settings.sophos_api_url == "https://192.168.1.1:4444/webconsole/APIController"
 
@@ -38,6 +39,7 @@ def test_settings_custom_values() -> None:
         dry_run=True,
         max_consecutive_failures=5,
         exit_on_auth_failure=False,
+        mac_disambiguation="always",
     )
     assert settings.technitium_url == "https://dns.example.com"
     assert settings.sophos_api_url == "https://10.0.0.1:8443/webconsole/APIController"
@@ -45,6 +47,7 @@ def test_settings_custom_values() -> None:
     assert settings.dry_run is True
     assert settings.max_consecutive_failures == 5
     assert settings.exit_on_auth_failure is False
+    assert settings.mac_disambiguation == "always"
 
 
 def test_settings_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -57,6 +60,7 @@ def test_settings_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SOPHOS_PORT", "8443")
     monkeypatch.setenv("SOPHOS_LOGIN", "secadmin")
     monkeypatch.setenv("SOPHOS_PASSWORD", "secpass")
+    monkeypatch.setenv("MAC_SUFFIX_MODE", "off")
 
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.technitium_url == "http://10.0.1.5:5380"
@@ -66,3 +70,4 @@ def test_settings_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.sophos_user == "secadmin"
     assert settings.sophos_pass.get_secret_value() == "secpass"
     assert settings.sophos_api_url == "https://10.0.1.1:8443/webconsole/APIController"
+    assert settings.mac_disambiguation == "off"

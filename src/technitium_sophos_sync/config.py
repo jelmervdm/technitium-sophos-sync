@@ -139,6 +139,11 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("EXIT_ON_AUTH_FAILURE", "EXIT_ON_AUTH_ERROR"),
         description="Immediately exit process if API authentication fails in daemon mode",
     )
+    mac_disambiguation: Literal["duplicates_only", "always", "off"] = Field(
+        default="duplicates_only",
+        validation_alias=AliasChoices("MAC_DISAMBIGUATION", "MAC_SUFFIX_MODE"),
+        description="MAC disambiguation mode for user names (duplicates_only, always, off)",
+    )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
         description="Logging verbosity level",

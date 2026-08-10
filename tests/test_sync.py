@@ -116,3 +116,89 @@ def test_sync_engine_case_insensitive_matching(mock_settings: Settings) -> None:
 
     mock_sophos.upsert_clientless_user.assert_not_called()
 
+
+def test_format_disambiguated_name() -> None:
+    """Test format_disambiguated_name appends last 4 chars of MAC address."""
+    from technitium_sophos_sync.sync import format_disambiguated_name
+
+    assert format_disambiguated_name("SonosZP", "00-11-22-33-44-55") == "SonosZP_4455"
+    assert format_disambiguated_name("SonosZP", "001122334455") == "SonosZP_4455"
+    assert format_disambiguated_name("SonosZP", "") == "SonosZP_0000"
+
+
+def test_prepare_lease_names_duplicates_only() -> None:
+    """Test prepare_lease_names in 'duplicates_only' mode only suffixes duplicate hostnames."""
+    from technitium_sophos_sync.sync import prepare_lease_names
+
+    leases = [
+        DHCPLease(name="SonosZP", ip="10.0.0.1", mac="00-11-22-33-44-55", is_reserved=False),
+        DHCPLease(name="SonosZP", ip="10.0.0.2", mac="00-11-22-33-AA-BB", is_reserved=False),
+        DHCPLease(name="UniqueHost", ip="10.0.0.3", mac="00-11-22-33-CC-DD", is_reserved=False),
+    ]
+
+    named_leases = prepare_lease_names(leases, mode="duplicates_only")
+    assert len(named_leases) == 3
+    assert named_leases[0] == (leases[0], "SonosZP_4455")
+    assert named_leases[1] == (leases[1], "SonosZP_AABB")
+    assert named_leases[2] == (leases[2], "UniqueHost")
+
+
+def test_prepare_lease_names_modes() -> None:
+    """Test prepare_lease_names in 'always' and 'off' modes."""
+    from technitium_sophos_sync.sync import prepare_lease_names
+
+    leases = [
+        DHCPLease(name="HostA", ip="10.0.0.1", mac="00-11-22-33-44-55", is_reserved=False),
+        DHCPLease(name="HostB", ip="10.0.0.2", mac="00-11-22-33-AA-BB", is_reserved=False),
+    ]
+
+    always_leases = prepare_lease_names(leases, mode="always")
+    assert always_leases[0][1] == "HostA_4455"
+    assert always_leases[1][1] == "HostB_AABB"
+
+    off_leases = prepare_lease_names(leases, mode="off")
+    assert off_leases[0][1] == "HostA"
+    assert off_leases[1][1] == "HostB"
+
+
+def test_sync_engine_ip_conflict_skipping(mock_settings: Settings) -> None:
+    """Test that leases targeting an IP bound to a different Sophos user are skipped."""
+    from technitium_sophos_sync.sophos import SophosUsersState
+
+    mock_tech = MagicMock()
+    mock_sophos = MagicMock()
+
+    mock_tech.get_dhcp_leases.return_value = [
+        DHCPLease(
+            name="NewDHCPDevice",
+            ip="192.168.1.50",
+            mac="00-11-22-33-44-55",
+            is_reserved=False,
+        ),
+    ]
+
+    # IP 192.168.1.50 is owned by manual user 'manual_admin' in Sophos
+    mock_sophos.get_existing_clientless_users_state.return_value = SophosUsersState(
+        by_name={"manual_admin": "192.168.1.50"},
+        by_ip={"192.168.1.50": "manual_admin"},
+    )
+
+    engine = SyncEngine(
+        settings=mock_settings,
+        technitium_client=mock_tech,
+        sophos_client=mock_sophos,
+    )
+
+    result = engine.run_sync()
+
+    assert result.total_leases == 1
+    assert result.created == 0
+    assert result.updated == 0
+    assert result.unchanged == 1
+    assert result.errors == 0
+
+    # Ensure upsert_clientless_user was NOT called because IP is conflicted
+    mock_sophos.upsert_clientless_user.assert_not_called()
+
+
+

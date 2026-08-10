@@ -3,12 +3,22 @@
 import logging
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from xml.sax.saxutils import escape
 
 import httpx
 import urllib3
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SophosUsersState:
+    """Existing Sophos Clientless Users indexed by name and by IP address."""
+
+    by_name: dict[str, str]
+    by_ip: dict[str, str]
+
 
 
 class SophosClientError(Exception):
@@ -167,6 +177,18 @@ class SophosClient:
         Raises:
             SophosClientError: On connection errors or authentication failures.
         """
+        return self.get_existing_clientless_users_state().by_name
+
+    def get_existing_clientless_users_state(self) -> SophosUsersState:
+        """Fetch existing Clientless Users from Sophos Firewall and index by name and IP.
+
+        Returns:
+            SophosUsersState containing by_name mapping and by_ip mapping.
+
+        Raises:
+            SophosClientError: On HTTP or XML parsing errors.
+            SophosAuthError: On authentication failure.
+        """
         xml_request = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Request APIVersion="{escape(self.api_version)}">
     <Login>
@@ -196,22 +218,29 @@ class SophosClient:
             response.text,
         )
         root = self._parse_and_verify_response(response.text)
-        existing: dict[str, str] = {}
+        by_name: dict[str, str] = {}
+        by_ip: dict[str, str] = {}
 
         for user in root.findall(".//ClientlessUser"):
             user_name = user.findtext("UserName")
             display_name = user.findtext("Name")
             ip = user.findtext("IPAddress")
             if ip:
+                canonical_name = user_name or display_name or "Unknown"
+                by_ip[ip] = canonical_name
                 if user_name:
-                    existing[user_name] = ip
-                    existing[user_name.lower()] = ip
+                    by_name[user_name] = ip
+                    by_name[user_name.lower()] = ip
                 if display_name:
-                    existing[display_name] = ip
-                    existing[display_name.lower()] = ip
+                    by_name[display_name] = ip
+                    by_name[display_name.lower()] = ip
 
-        logger.debug("Retrieved %d clientless users from Sophos Firewall", len(existing))
-        return existing
+        logger.debug(
+            "Retrieved %d clientless users from Sophos Firewall (%d unique IPs)",
+            len(by_name),
+            len(by_ip),
+        )
+        return SophosUsersState(by_name=by_name, by_ip=by_ip)
 
     def upsert_clientless_user(self, name: str, ip: str, operation: str = "add") -> bool:
         """Add or update a Clientless User on Sophos Firewall.
