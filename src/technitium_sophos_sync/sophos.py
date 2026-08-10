@@ -200,9 +200,15 @@ class SophosClient:
 
         for user in root.findall(".//ClientlessUser"):
             user_name = user.findtext("UserName")
+            display_name = user.findtext("Name")
             ip = user.findtext("IPAddress")
-            if user_name and ip:
-                existing[user_name] = ip
+            if ip:
+                if user_name:
+                    existing[user_name] = ip
+                    existing[user_name.lower()] = ip
+                if display_name:
+                    existing[display_name] = ip
+                    existing[display_name.lower()] = ip
 
         logger.debug("Retrieved %d clientless users from Sophos Firewall", len(existing))
         return existing
@@ -237,6 +243,7 @@ class SophosClient:
             <ClientLessGroup>{escape(self.clientless_group)}</ClientLessGroup>
             <Status>Active</Status>
             <QuarantineDigest>Disable</QuarantineDigest>
+            <QoSPolicy>None</QoSPolicy>
         </ClientlessUser>
     </Set>
 </Request>"""
@@ -296,6 +303,14 @@ class SophosClient:
             )
         else:
             if user_status_code == "503" or "already exists" in user_status_text.lower():
+                if operation == "add":
+                    logger.warning(
+                        "Sophos API conflict for user '%s' on 'add' (%s). "
+                        "Retrying with operation='update'...",
+                        name,
+                        user_status_text or "Entity already exists",
+                    )
+                    return self.upsert_clientless_user(name, ip, operation="update")
                 logger.error(
                     "Sophos API conflict for user '%s' (%s): %s (Code: %s)",
                     name,
