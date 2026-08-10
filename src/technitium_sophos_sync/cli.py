@@ -256,7 +256,8 @@ def main(
                     and consecutive_failures >= settings.max_consecutive_failures
                 ):
                     logger.critical(
-                        "Reached maximum consecutive failures (%d/%d). Exiting daemon process with status 1.",
+                        "Reached maximum consecutive failures (%d/%d). "
+                        "Exiting daemon process with status 1.",
                         consecutive_failures,
                         settings.max_consecutive_failures,
                     )

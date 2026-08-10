@@ -75,7 +75,9 @@ def test_cli_timeouts(mock_engine_cls: MagicMock) -> None:
 
 @patch("technitium_sophos_sync.cli.time.sleep")
 @patch("technitium_sophos_sync.cli.SyncEngine")
-def test_cli_daemon_max_consecutive_failures(mock_engine_cls: MagicMock, mock_sleep: MagicMock) -> None:
+def test_cli_daemon_max_consecutive_failures(
+    mock_engine_cls: MagicMock, mock_sleep: MagicMock
+) -> None:
     """Test that daemon mode exits after reaching max consecutive failures."""
     from technitium_sophos_sync.sync import SyncResult
 
