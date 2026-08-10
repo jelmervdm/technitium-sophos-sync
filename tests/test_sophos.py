@@ -143,3 +143,16 @@ def test_sophos_custom_api_version() -> None:
     req_body = unquote(route.calls.last.request.content.decode("utf-8"))
     assert 'APIVersion="2100.1"' in req_body
 
+
+def test_sophos_whitespace_stripping() -> None:
+    """Test that leading/trailing whitespace is stripped from credentials and host parameters."""
+    client = SophosClient(
+        firewall_ip=" 192.168.1.1 \n",
+        username=" admin\n ",
+        password=" secretpassword\r\n ",
+    )
+    assert client.username == "admin"
+    assert client.password == "secretpassword"
+    assert client.url == "https://192.168.1.1:4444/webconsole/APIController"
+
+
