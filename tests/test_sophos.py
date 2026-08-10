@@ -91,7 +91,6 @@ def test_upsert_clientless_user_auth_failure() -> None:
         client.upsert_clientless_user("test_user", "192.168.1.50")
 
 
-
 @respx.mock
 def test_upsert_clientless_user_success() -> None:
     """Test upserting a Clientless User."""
@@ -212,4 +211,56 @@ def test_sophos_whitespace_stripping() -> None:
     assert client.url == "https://192.168.1.1:4444/webconsole/APIController"
 
 
+def test_mask_xml_password() -> None:
+    """Test that _mask_xml replaces sensitive password values."""
+    raw_xml = (
+        "<Request><Login><Username>admin</Username>"
+        "<Password>supersecret</Password></Login></Request>"
+    )
+    masked = SophosClient._mask_xml(raw_xml)
+    assert "supersecret" not in masked
+    assert "<Password>********</Password>" in masked
 
+
+@respx.mock
+def test_parse_response_status_code_attribute() -> None:
+    """Test handling status responses with code attribute and non-success."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="wrong_password",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status code="529">Authentication Failed</status>
+    </Login>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    with pytest.raises(SophosClientError, match="code: 529"):
+        client.get_existing_clientless_users()
+
+
+@respx.mock
+def test_parse_response_top_level_status_error() -> None:
+    """Test handling top-level status errors such as IP restrictions."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Status code="500">API Access is not allowed from this IP</Status>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    with pytest.raises(SophosClientError, match="API Access is not allowed"):
+        client.get_existing_clientless_users()

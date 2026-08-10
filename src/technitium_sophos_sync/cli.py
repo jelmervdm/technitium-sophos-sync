@@ -189,6 +189,20 @@ def main(
     setup_logging(settings.log_level)
 
     logger.info("Starting technitium-sophos-sync v%s", __version__)
+    logger.info(
+        "Configuration: Technitium URL=%s, Sophos IP=%s:%d, User=%s, Group='%s', "
+        "Email Domain='%s', Static Only=%s, Sync Interval=%ds, Verify SSL=%s, Log Level=%s",
+        settings.technitium_url,
+        settings.sophos_firewall_ip,
+        settings.sophos_firewall_port,
+        settings.sophos_user,
+        settings.sophos_clientless_group,
+        settings.sophos_email_domain,
+        settings.static_leases_only,
+        settings.sync_interval,
+        settings.sophos_verify_ssl,
+        settings.log_level,
+    )
     if settings.dry_run:
         logger.warning("DRY RUN MODE ENABLED - No changes will be written to Sophos Firewall.")
 
@@ -211,7 +225,7 @@ def main(
                 try:
                     engine.run_sync()
                 except Exception as err:
-                    logger.error("Error during sync cycle: %s", err)
+                    logger.error("Error during sync cycle: %s", err, exc_info=True)
 
                 logger.info(
                     "Sleeping for %d seconds before next sync cycle...",

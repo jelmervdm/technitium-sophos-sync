@@ -71,4 +71,3 @@ def test_cli_timeouts(mock_engine_cls: MagicMock) -> None:
     settings_passed = mock_engine_cls.call_args.kwargs["settings"]
     assert settings_passed.sophos_timeout == 45.0
     assert settings_passed.technitium_timeout == 20.0
-

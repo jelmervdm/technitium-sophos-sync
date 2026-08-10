@@ -87,9 +87,20 @@ class SyncEngine:
                         if self.sophos.upsert_clientless_user(name, ip):
                             result.created += 1
                         else:
+                            logger.error(
+                                "Failed to create Clientless User '%s' -> %s (Sophos API error)",
+                                name,
+                                ip,
+                            )
                             result.errors += 1
                     except Exception as err:
-                        logger.error("Error creating Clientless User %s: %s", name, err)
+                        logger.error(
+                            "Error creating Clientless User '%s' -> %s: %s",
+                            name,
+                            ip,
+                            err,
+                            exc_info=True,
+                        )
                         result.errors += 1
 
             elif existing_users[name] != ip:
@@ -103,9 +114,22 @@ class SyncEngine:
                         if self.sophos.upsert_clientless_user(name, ip):
                             result.updated += 1
                         else:
+                            logger.error(
+                                "Failed to update Clientless User '%s': %s -> %s (API error)",
+                                name,
+                                old_ip,
+                                ip,
+                            )
                             result.errors += 1
                     except Exception as err:
-                        logger.error("Error updating Clientless User %s: %s", name, err)
+                        logger.error(
+                            "Error updating Clientless User '%s': %s -> %s: %s",
+                            name,
+                            old_ip,
+                            ip,
+                            err,
+                            exc_info=True,
+                        )
                         result.errors += 1
             else:
                 logger.debug("[= MATCH] %s -> %s already up to date", name, ip)

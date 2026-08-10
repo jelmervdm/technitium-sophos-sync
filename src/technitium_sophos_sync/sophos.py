@@ -55,6 +55,23 @@ class SophosClient:
         if not self.verify_ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
+    @staticmethod
+    def _mask_xml(xml_str: str) -> str:
+        """Mask sensitive values (like Password) in XML string for safe logging.
+
+        Args:
+            xml_str: Raw XML request string.
+
+        Returns:
+            XML string with Password content replaced by asterisks.
+        """
+        return re.sub(
+            r"(<Password>)[^<]*(</Password>)",
+            r"\1********\2",
+            xml_str,
+            flags=re.IGNORECASE,
+        )
+
     def _parse_and_verify_response(self, xml_text: str) -> ET.Element:
         """Parse XML response from Sophos Firewall and verify authentication status.
 
@@ -75,7 +92,7 @@ class SophosClient:
         try:
             root = ET.fromstring(sanitized_xml)
         except ET.ParseError as err:
-            logger.error("Failed to parse Sophos API XML response: %s", err)
+            logger.error("Failed to parse Sophos API XML response: %s. Raw XML:\n%s", err, xml_text)
             raise SophosClientError(f"Invalid XML returned by Sophos Firewall: {err}") from err
 
         # Sophos places login status in <Login><status> or <Login><Status>
@@ -83,22 +100,57 @@ class SophosClient:
         if login_status_node is None:
             login_status_node = root.find(".//Login/Status")
 
-        if login_status_node is not None and login_status_node.text:
-            status_text = login_status_node.text.strip()
-            if status_text != "Authentication Successful":
-                logger.error("Sophos API authentication error: %s", status_text)
-                raise SophosClientError(f"Sophos Firewall authentication failed: {status_text}")
+        if login_status_node is not None:
+            status_text = (login_status_node.text or "").strip()
+            status_code = login_status_node.get("code", "").strip()
+            is_success = (
+                status_text == "Authentication Successful"
+                or status_code == "200"
+                or "Successful" in status_text
+            )
+            if not is_success:
+                msg_parts = []
+                if status_text:
+                    msg_parts.append(status_text)
+                if status_code:
+                    msg_parts.append(f"code: {status_code}")
+                if not msg_parts:
+                    msg_parts.append(f"Raw response: {sanitized_xml[:300]}")
 
-        # Also check root level <Status> for legacy or top-level error messages
+                err_msg = ", ".join(msg_parts)
+                logger.error(
+                    "Sophos API authentication error: %s. Raw XML response:\n%s",
+                    err_msg,
+                    xml_text,
+                )
+                raise SophosClientError(f"Sophos Firewall authentication failed: {err_msg}")
+
+        # Also check root level <Status> or <status> for legacy or top-level error messages
         top_status_node = root.find("./Status")
-        if top_status_node is not None and top_status_node.text:
-            top_status_text = top_status_node.text.strip()
+        if top_status_node is None:
+            top_status_node = root.find("./status")
+
+        if top_status_node is not None:
+            top_text = (top_status_node.text or "").strip()
+            top_code = top_status_node.get("code", "").strip()
             if (
-                "Authentication Failed" in top_status_text
-                or "Authentication Failure" in top_status_text
+                "Failed" in top_text
+                or "Failure" in top_text
+                or "not allowed" in top_text.lower()
+                or (top_code and top_code != "200" and top_code != "")
             ):
-                logger.error("Sophos API authentication error: %s", top_status_text)
-                raise SophosClientError(f"Sophos Firewall authentication failed: {top_status_text}")
+                msg_parts = []
+                if top_text:
+                    msg_parts.append(top_text)
+                if top_code:
+                    msg_parts.append(f"code: {top_code}")
+                err_msg = ", ".join(msg_parts) or f"Raw response: {sanitized_xml[:300]}"
+                logger.error(
+                    "Sophos API top-level status error: %s. Raw XML response:\n%s",
+                    err_msg,
+                    xml_text,
+                )
+                raise SophosClientError(f"Sophos Firewall API error: {err_msg}")
 
         return root
 
@@ -122,14 +174,23 @@ class SophosClient:
     </Get>
 </Request>"""
 
+        logger.debug(
+            "Sending Sophos API Request [Get ClientlessUser]:\n%s", self._mask_xml(xml_request)
+        )
+
         try:
             with httpx.Client(verify=self.verify_ssl, timeout=self.timeout) as client:
                 response = client.post(self.url, data={"reqxml": xml_request})
                 response.raise_for_status()
         except httpx.HTTPError as err:
-            logger.error("HTTP error while querying Sophos API: %s", err)
+            logger.error("HTTP error while querying Sophos API (%s): %s", self.url, err)
             raise SophosClientError(f"HTTP error contacting Sophos Firewall: {err}") from err
 
+        logger.debug(
+            "Sophos API Response [Get ClientlessUser - Status %d]:\n%s",
+            response.status_code,
+            response.text,
+        )
         root = self._parse_and_verify_response(response.text)
         existing: dict[str, str] = {}
 
@@ -175,30 +236,62 @@ class SophosClient:
     </Set>
 </Request>"""
 
+        logger.debug(
+            "Sending Sophos API Request [Set ClientlessUser '%s']:\n%s",
+            name,
+            self._mask_xml(xml_request),
+        )
+
         try:
             with httpx.Client(verify=self.verify_ssl, timeout=self.timeout) as client:
                 response = client.post(self.url, data={"reqxml": xml_request})
                 response.raise_for_status()
         except httpx.HTTPError as err:
-            logger.error("HTTP error upserting Clientless User '%s': %s", name, err)
+            logger.error("HTTP error upserting Clientless User '%s' (%s): %s", name, self.url, err)
             raise SophosClientError(f"HTTP error during upsert of '{name}': {err}") from err
 
-        self._parse_and_verify_response(response.text)
+        logger.debug(
+            "Sophos API Response [Set ClientlessUser '%s' - Status %d]:\n%s",
+            name,
+            response.status_code,
+            response.text,
+        )
+        root = self._parse_and_verify_response(response.text)
 
         text = response.text
+        user_status_node = root.find(".//ClientlessUser/status")
+        if user_status_node is None:
+            user_status_node = root.find(".//ClientlessUser/Status")
+
+        user_status_text = (
+            (user_status_node.text or "").strip() if user_status_node is not None else ""
+        )
+        user_status_code = (
+            user_status_node.get("code", "").strip() if user_status_node is not None else ""
+        )
+
         success = (
             "Authentication Successful" in text
             or "<Status>200</Status>" in text
             or 'code="200"' in text
             or "Configuration updated" in text
             or "User added successfully" in text
+            or "User updated successfully" in text
+            or user_status_code == "200"
         )
-        if not success:
-            logger.warning(
-                "Sophos API response for user '%s' did not indicate clear success: %s",
+
+        if success:
+            logger.info(
+                "Successfully synced Clientless User '%s' -> %s on Sophos Firewall.", name, ip
+            )
+        else:
+            logger.error(
+                "Sophos API response for user '%s' did not indicate success. "
+                "Status text: '%s', code: '%s'. Full response XML:\n%s",
                 name,
-                text[:300],
+                user_status_text or "N/A",
+                user_status_code or "N/A",
+                text,
             )
 
         return success
-
