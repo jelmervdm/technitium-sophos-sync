@@ -122,6 +122,13 @@ def setup_logging(level_name: str) -> None:
     help="Continuous sync interval in seconds (default: 0 for single-run mode)",
 )
 @click.option(
+    "--mac-disambiguation",
+    "mac_disambiguation",
+    type=click.Choice(["duplicates_only", "always", "off"], case_sensitive=False),
+    envvar="MAC_DISAMBIGUATION",
+    help="MAC address suffix mode for hostnames (duplicates_only, always, off)",
+)
+@click.option(
     "--once",
     is_flag=True,
     help="Force execution to run once and exit regardless of sync_interval",
@@ -148,6 +155,7 @@ def main(
     sophos_timeout: float | None,
     technitium_timeout: float | None,
     sync_interval: int | None,
+    mac_disambiguation: str | None,
     once: bool,
     log_level: str | None,
 ) -> None:
@@ -184,6 +192,8 @@ def main(
         settings.technitium_timeout = technitium_timeout
     if sync_interval is not None:
         settings.sync_interval = sync_interval
+    if mac_disambiguation is not None:
+        settings.mac_disambiguation = mac_disambiguation.lower()  # type: ignore[assignment]
     if log_level is not None:
         settings.log_level = log_level.upper()  # type: ignore[assignment]
 
@@ -192,7 +202,8 @@ def main(
     logger.info("Starting technitium-sophos-sync v%s", __version__)
     logger.info(
         "Configuration: Technitium URL=%s, Sophos IP=%s:%d, User=%s, Group='%s', "
-        "Email Domain='%s', Static Only=%s, Sync Interval=%ds, Verify SSL=%s, Log Level=%s",
+        "Email Domain='%s', Static Only=%s, Sync Interval=%ds, MAC Disambiguation='%s', "
+        "Verify SSL=%s, Log Level=%s",
         settings.technitium_url,
         settings.sophos_firewall_ip,
         settings.sophos_firewall_port,
@@ -201,6 +212,7 @@ def main(
         settings.sophos_email_domain,
         settings.static_leases_only,
         settings.sync_interval,
+        settings.mac_disambiguation,
         settings.sophos_verify_ssl,
         settings.log_level,
     )
