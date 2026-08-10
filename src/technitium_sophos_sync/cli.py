@@ -9,6 +9,7 @@ from pydantic import SecretStr
 
 from technitium_sophos_sync import __version__
 from technitium_sophos_sync.config import Settings
+from technitium_sophos_sync.sophos import SophosAuthError
 from technitium_sophos_sync.sync import SyncEngine
 
 logger = logging.getLogger("technitium_sophos_sync")
@@ -210,7 +211,11 @@ def main(
 
     if once or settings.sync_interval <= 0:
         logger.info("Running single sync pass...")
-        res = engine.run_sync()
+        try:
+            res = engine.run_sync()
+        except SophosAuthError as err:
+            logger.critical("Sophos authentication failure: %s", err)
+            sys.exit(1)
         if res.errors > 0:
             logger.error("Sync completed with %d error(s).", res.errors)
             sys.exit(1)
@@ -220,12 +225,42 @@ def main(
             "Starting continuous sync daemon mode (interval: %d seconds)...",
             settings.sync_interval,
         )
+        consecutive_failures = 0
         try:
             while True:
                 try:
-                    engine.run_sync()
+                    res = engine.run_sync()
+                    if res.errors > 0:
+                        consecutive_failures += 1
+                        logger.warning(
+                            "Sync cycle completed with %d error(s) (consecutive failures: %d)",
+                            res.errors,
+                            consecutive_failures,
+                        )
+                    else:
+                        consecutive_failures = 0
+                except SophosAuthError as err:
+                    logger.critical("Sophos authentication failure: %s", err)
+                    if settings.exit_on_auth_failure:
+                        logger.critical(
+                            "exit_on_auth_failure is enabled. Exiting daemon process with status 1."
+                        )
+                        sys.exit(1)
+                    consecutive_failures += 1
                 except Exception as err:
                     logger.error("Error during sync cycle: %s", err, exc_info=True)
+                    consecutive_failures += 1
+
+                if (
+                    settings.max_consecutive_failures > 0
+                    and consecutive_failures >= settings.max_consecutive_failures
+                ):
+                    logger.critical(
+                        "Reached maximum consecutive failures (%d/%d). Exiting daemon process with status 1.",
+                        consecutive_failures,
+                        settings.max_consecutive_failures,
+                    )
+                    sys.exit(1)
 
                 logger.info(
                     "Sleeping for %d seconds before next sync cycle...",

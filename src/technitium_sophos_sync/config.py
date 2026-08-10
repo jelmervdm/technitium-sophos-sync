@@ -129,6 +129,16 @@ class Settings(BaseSettings):
         default=False,
         description="If True, log changes without executing API calls against Sophos Firewall",
     )
+    max_consecutive_failures: int = Field(
+        default=3,
+        validation_alias=AliasChoices("MAX_CONSECUTIVE_FAILURES", "MAX_FAILURES"),
+        description="Max consecutive sync failures in daemon mode before exiting (0 to disable)",
+    )
+    exit_on_auth_failure: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("EXIT_ON_AUTH_FAILURE", "EXIT_ON_AUTH_ERROR"),
+        description="Immediately exit process if API authentication fails in daemon mode",
+    )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
         description="Logging verbosity level",

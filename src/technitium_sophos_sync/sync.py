@@ -4,7 +4,7 @@ import logging
 from dataclasses import dataclass
 
 from technitium_sophos_sync.config import Settings
-from technitium_sophos_sync.sophos import SophosClient
+from technitium_sophos_sync.sophos import SophosAuthError, SophosClient
 from technitium_sophos_sync.technitium import TechnitiumClient
 
 logger = logging.getLogger(__name__)
@@ -93,6 +93,8 @@ class SyncEngine:
                                 ip,
                             )
                             result.errors += 1
+                    except SophosAuthError:
+                        raise
                     except Exception as err:
                         logger.error(
                             "Error creating Clientless User '%s' -> %s: %s",
@@ -121,6 +123,8 @@ class SyncEngine:
                                 ip,
                             )
                             result.errors += 1
+                    except SophosAuthError:
+                        raise
                     except Exception as err:
                         logger.error(
                             "Error updating Clientless User '%s': %s -> %s: %s",

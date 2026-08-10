@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-08-10
+
+### Added
+- Added dedicated `SophosAuthError` exception class to specifically capture Sophos Firewall XML API authentication failures.
+- Added `MAX_CONSECUTIVE_FAILURES` (default `3`) and `EXIT_ON_AUTH_FAILURE` / `EXIT_ON_AUTH_ERROR` (default `True`) environment variables and settings.
+
+### Changed
+- Updated CLI daemon loop to fail fast and exit immediately upon authentication failure or after reaching maximum consecutive sync failures.
+- Re-raised `SophosAuthError` from sync engine to ensure authentication errors correctly trigger daemon exit logic.
+
 ## [0.1.7] - 2026-08-10
 
 ### Fixed

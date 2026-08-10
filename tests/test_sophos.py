@@ -6,7 +6,7 @@ import pytest
 import respx
 from httpx import Response
 
-from technitium_sophos_sync.sophos import SophosClient, SophosClientError
+from technitium_sophos_sync.sophos import SophosAuthError, SophosClient, SophosClientError
 
 
 @respx.mock
@@ -64,7 +64,7 @@ def test_get_existing_clientless_users_auth_failure() -> None:
         return_value=Response(200, text=xml_response)
     )
 
-    with pytest.raises(SophosClientError, match="authentication failed"):
+    with pytest.raises(SophosAuthError, match="authentication failed"):
         client.get_existing_clientless_users()
 
 
@@ -87,7 +87,7 @@ def test_upsert_clientless_user_auth_failure() -> None:
         return_value=Response(200, text=xml_response)
     )
 
-    with pytest.raises(SophosClientError, match="authentication failed"):
+    with pytest.raises(SophosAuthError, match="authentication failed"):
         client.upsert_clientless_user("test_user", "192.168.1.50")
 
 

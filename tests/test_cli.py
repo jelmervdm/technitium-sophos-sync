@@ -71,3 +71,43 @@ def test_cli_timeouts(mock_engine_cls: MagicMock) -> None:
     settings_passed = mock_engine_cls.call_args.kwargs["settings"]
     assert settings_passed.sophos_timeout == 45.0
     assert settings_passed.technitium_timeout == 20.0
+
+
+@patch("technitium_sophos_sync.cli.time.sleep")
+@patch("technitium_sophos_sync.cli.SyncEngine")
+def test_cli_daemon_max_consecutive_failures(mock_engine_cls: MagicMock, mock_sleep: MagicMock) -> None:
+    """Test that daemon mode exits after reaching max consecutive failures."""
+    from technitium_sophos_sync.sync import SyncResult
+
+    mock_engine = mock_engine_cls.return_value
+    # Return errors > 0 for consecutive runs
+    mock_engine.run_sync.return_value = SyncResult(total_leases=1, errors=1)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["-i", "10"],
+        env={"MAX_CONSECUTIVE_FAILURES": "2", "TECHNITIUM_TOKEN": "tok", "SOPHOS_PASS": "pass"},
+    )
+
+    assert result.exit_code == 1
+    assert mock_engine.run_sync.call_count == 2
+
+
+@patch("technitium_sophos_sync.cli.SyncEngine")
+def test_cli_auth_failure_exit(mock_engine_cls: MagicMock) -> None:
+    """Test that SophosAuthError triggers exit in daemon mode when exit_on_auth_failure is True."""
+    from technitium_sophos_sync.sophos import SophosAuthError
+
+    mock_engine = mock_engine_cls.return_value
+    mock_engine.run_sync.side_effect = SophosAuthError("Auth failed")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["-i", "10"],
+        env={"EXIT_ON_AUTH_FAILURE": "true", "TECHNITIUM_TOKEN": "tok", "SOPHOS_PASS": "pass"},
+    )
+
+    assert result.exit_code == 1
+    assert mock_engine.run_sync.call_count == 1

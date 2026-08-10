@@ -15,6 +15,10 @@ class SophosClientError(Exception):
     """Exception raised for errors during Sophos Firewall API interaction."""
 
 
+class SophosAuthError(SophosClientError):
+    """Exception raised when Sophos Firewall authentication fails."""
+
+
 class SophosClient:
     """Client for interacting with Sophos Firewall APIController."""
 
@@ -123,7 +127,7 @@ class SophosClient:
                     err_msg,
                     xml_text,
                 )
-                raise SophosClientError(f"Sophos Firewall authentication failed: {err_msg}")
+                raise SophosAuthError(f"Sophos Firewall authentication failed: {err_msg}")
 
         # Also check root level <Status> or <status> for legacy or top-level error messages
         top_status_node = root.find("./Status")
