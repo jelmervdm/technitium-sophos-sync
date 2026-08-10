@@ -5,6 +5,7 @@ on:
     branches: [ main, dev, "fix/*", "feature/*" ]
   pull_request:
     branches: [ main, dev ]
+  workflow_dispatch:
 
 jobs:
   lint-and-test:
