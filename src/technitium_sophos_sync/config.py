@@ -83,6 +83,18 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _resolve_urls(self) -> "Settings":
+        if self.technitium_ip:
+            self.technitium_ip = self.technitium_ip.strip()
+        if self.technitium_url:
+            self.technitium_url = self.technitium_url.strip()
+        if self.technitium_token:
+            self.technitium_token = SecretStr(self.technitium_token.get_secret_value().strip())
+        if self.sophos_firewall_ip:
+            self.sophos_firewall_ip = self.sophos_firewall_ip.strip()
+        if self.sophos_user:
+            self.sophos_user = self.sophos_user.strip()
+        if self.sophos_pass:
+            self.sophos_pass = SecretStr(self.sophos_pass.get_secret_value().strip())
         if not self.technitium_url:
             ip = self.technitium_ip or "192.168.1.10"
             self.technitium_url = f"http://{ip}:{self.technitium_port}"

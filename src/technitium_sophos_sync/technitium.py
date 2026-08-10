@@ -35,8 +35,8 @@ class TechnitiumClient:
             token: API token for authentication.
             timeout: Request timeout in seconds.
         """
-        self.base_url = base_url.rstrip("/")
-        self.token = token
+        self.base_url = base_url.strip().rstrip("/")
+        self.token = token.strip()
         self.timeout = timeout
 
     @staticmethod

@@ -40,13 +40,13 @@ class SophosClient:
             timeout: HTTP timeout in seconds.
             api_version: Sophos API version string.
         """
-        self.url = f"https://{firewall_ip}:{port}/webconsole/APIController"
-        self.username = username
-        self.password = password
-        self.clientless_group = clientless_group
+        self.url = f"https://{firewall_ip.strip()}:{port}/webconsole/APIController"
+        self.username = username.strip()
+        self.password = password.strip()
+        self.clientless_group = clientless_group.strip()
         self.verify_ssl = verify_ssl
         self.timeout = timeout
-        self.api_version = api_version
+        self.api_version = api_version.strip()
 
         if not self.verify_ssl:
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
