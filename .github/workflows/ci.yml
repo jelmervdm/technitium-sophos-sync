@@ -32,7 +32,7 @@ jobs:
 
       - name: Type check with mypy
         run: |
-          mypy src
+          mypy src tests
 
       - name: Run unit tests with pytest
         run: |

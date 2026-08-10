@@ -207,12 +207,13 @@ class SophosClient:
         logger.debug("Retrieved %d clientless users from Sophos Firewall", len(existing))
         return existing
 
-    def upsert_clientless_user(self, name: str, ip: str) -> bool:
+    def upsert_clientless_user(self, name: str, ip: str, operation: str = "add") -> bool:
         """Add or update a Clientless User on Sophos Firewall.
 
         Args:
             name: User/Device name.
             ip: Assigned IP address.
+            operation: API operation ('add' or 'update'). Default is 'add'.
 
         Returns:
             True if operation succeeded, False otherwise.
@@ -227,7 +228,7 @@ class SophosClient:
         <Username>{escape(self.username)}</Username>
         <Password>{escape(self.password)}</Password>
     </Login>
-    <Set operation="add">
+    <Set operation="{escape(operation)}">
         <ClientlessUser>
             <UserName>{escape(name)}</UserName>
             <Name>{escape(name)}</Name>
@@ -241,7 +242,8 @@ class SophosClient:
 </Request>"""
 
         logger.debug(
-            "Sending Sophos API Request [Set ClientlessUser '%s']:\n%s",
+            "Sending Sophos API Request [Set (%s) ClientlessUser '%s']:\n%s",
+            operation,
             name,
             self._mask_xml(xml_request),
         )
@@ -255,7 +257,8 @@ class SophosClient:
             raise SophosClientError(f"HTTP error during upsert of '{name}': {err}") from err
 
         logger.debug(
-            "Sophos API Response [Set ClientlessUser '%s' - Status %d]:\n%s",
+            "Sophos API Response [Set (%s) ClientlessUser '%s' - Status %d]:\n%s",
+            operation,
             name,
             response.status_code,
             response.text,
@@ -275,27 +278,40 @@ class SophosClient:
         )
 
         success = (
-            "Authentication Successful" in text
+            user_status_code == "200"
+            or "Configuration applied" in user_status_text
+            or "Configuration updated" in user_status_text
+            or "User added successfully" in user_status_text
+            or "User updated successfully" in user_status_text
             or "<Status>200</Status>" in text
-            or 'code="200"' in text
-            or "Configuration updated" in text
-            or "User added successfully" in text
-            or "User updated successfully" in text
-            or user_status_code == "200"
+            or '<Status code="200"' in text
         )
 
         if success:
             logger.info(
-                "Successfully synced Clientless User '%s' -> %s on Sophos Firewall.", name, ip
+                "Successfully synced (%s) Clientless User '%s' -> %s on Sophos Firewall.",
+                operation,
+                name,
+                ip,
             )
         else:
-            logger.error(
-                "Sophos API response for user '%s' did not indicate success. "
-                "Status text: '%s', code: '%s'. Full response XML:\n%s",
-                name,
-                user_status_text or "N/A",
-                user_status_code or "N/A",
-                text,
-            )
+            if user_status_code == "503" or "already exists" in user_status_text.lower():
+                logger.error(
+                    "Sophos API conflict for user '%s' (%s): %s (Code: %s)",
+                    name,
+                    operation,
+                    user_status_text or "Entity already exists",
+                    user_status_code or "503",
+                )
+            else:
+                logger.error(
+                    "Sophos API response for user '%s' (%s) did not indicate success. "
+                    "Status text: '%s', code: '%s'. Full response XML:\n%s",
+                    name,
+                    operation,
+                    user_status_text or "N/A",
+                    user_status_code or "N/A",
+                    text,
+                )
 
         return success

@@ -9,7 +9,7 @@ def test_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("TECHNITIUM_URL", raising=False)
     monkeypatch.delenv("TECHNITIUM_IP", raising=False)
     settings = Settings(
-        _env_file=None,
+        _env_file=None,  # type: ignore[call-arg]
         technitium_token=SecretStr("token"),
         sophos_pass=SecretStr("pass"),
     )
@@ -58,7 +58,7 @@ def test_settings_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SOPHOS_LOGIN", "secadmin")
     monkeypatch.setenv("SOPHOS_PASSWORD", "secpass")
 
-    settings = Settings(_env_file=None)
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
     assert settings.technitium_url == "http://10.0.1.5:5380"
     assert settings.technitium_token.get_secret_value() == "key123"
     assert settings.sophos_firewall_ip == "10.0.1.1"

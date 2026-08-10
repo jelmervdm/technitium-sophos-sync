@@ -42,8 +42,12 @@ def test_sync_engine_creates_and_updates(mock_settings: Settings) -> None:
 
     # Ensure upsert_clientless_user was called for new_device and updated_device
     assert mock_sophos.upsert_clientless_user.call_count == 2
-    mock_sophos.upsert_clientless_user.assert_any_call("new_device", "192.168.1.10")
-    mock_sophos.upsert_clientless_user.assert_any_call("updated_device", "192.168.1.20")
+    mock_sophos.upsert_clientless_user.assert_any_call(
+        "new_device", "192.168.1.10", operation="add"
+    )
+    mock_sophos.upsert_clientless_user.assert_any_call(
+        "updated_device", "192.168.1.20", operation="update"
+    )
 
 
 def test_sync_engine_dry_run(mock_settings: Settings) -> None:

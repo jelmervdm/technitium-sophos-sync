@@ -20,7 +20,7 @@ Thank you for considering contributing to `technitium-sophos-sync`!
 3. Ensure tests and linting pass before submitting a pull request:
    ```bash
    pytest
-   mypy src
+   mypy src tests
    ruff check src tests
    ```
 

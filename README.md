@@ -197,7 +197,7 @@ pytest
 Run type checking and linting:
 
 ```bash
-mypy src
+mypy src tests
 ruff check src tests
 ```
 

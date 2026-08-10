@@ -84,7 +84,7 @@ class SyncEngine:
                 else:
                     logger.info("[+ CREATE] Adding Clientless User: %s -> %s", name, ip)
                     try:
-                        if self.sophos.upsert_clientless_user(name, ip):
+                        if self.sophos.upsert_clientless_user(name, ip, operation="add"):
                             result.created += 1
                         else:
                             logger.error(
@@ -113,7 +113,7 @@ class SyncEngine:
                 else:
                     logger.info("[~ UPDATE] Updating IP for %s: %s -> %s", name, old_ip, ip)
                     try:
-                        if self.sophos.upsert_clientless_user(name, ip):
+                        if self.sophos.upsert_clientless_user(name, ip, operation="update"):
                             result.updated += 1
                         else:
                             logger.error(

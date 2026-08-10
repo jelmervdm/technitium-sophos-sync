@@ -1,6 +1,6 @@
 """Unit tests for Sophos Firewall API client."""
 
-from urllib.parse import unquote
+from urllib.parse import unquote, unquote_plus
 
 import pytest
 import respx
@@ -142,8 +142,66 @@ def test_upsert_clientless_user_email_payload() -> None:
 
     client.upsert_clientless_user(name="myhost", ip="10.0.0.5")
     assert route.called
-    req_body = unquote(route.calls.last.request.content.decode("utf-8"))
+    req_body = unquote_plus(route.calls.last.request.content.decode("utf-8"))
     assert "<Email>myhost@custom.domain</Email>" in req_body
+    assert '<Set operation="add">' in req_body
+
+
+@respx.mock
+def test_upsert_clientless_user_update_operation() -> None:
+    """Test that upsert with operation='update' generates operation="update" XML tag."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status code="200">Configuration applied successfully.</Status>
+    </ClientlessUser>
+</Response>"""
+
+    route = respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    result = client.upsert_clientless_user(name="myhost", ip="10.0.0.5", operation="update")
+    assert result is True
+    assert route.called
+    req_body = unquote_plus(route.calls.last.request.content.decode("utf-8"))
+    assert '<Set operation="update">' in req_body
+
+
+@respx.mock
+def test_upsert_clientless_user_entity_exists_503() -> None:
+    """Test that 503 'Entity already exists' error is correctly recognized as failure."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser transactionid="">
+        <Status code="503">
+            Operation failed. Entity having same parameter details already exists.
+        </Status>
+    </ClientlessUser>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    result = client.upsert_clientless_user(name="existing_user", ip="192.168.1.50", operation="add")
+    assert result is False
 
 
 @respx.mock
