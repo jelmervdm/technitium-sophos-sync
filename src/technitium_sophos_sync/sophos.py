@@ -243,6 +243,7 @@ class SophosClient:
             <ClientLessGroup>{escape(self.clientless_group)}</ClientLessGroup>
             <Status>Active</Status>
             <QuarantineDigest>Disable</QuarantineDigest>
+            <QoSPolicy>None</QoSPolicy>
         </ClientlessUser>
     </Set>
 </Request>"""

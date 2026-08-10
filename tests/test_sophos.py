@@ -144,6 +144,7 @@ def test_upsert_clientless_user_email_payload() -> None:
     assert route.called
     req_body = unquote_plus(route.calls.last.request.content.decode("utf-8"))
     assert "<Email>myhost@custom.domain</Email>" in req_body
+    assert "<QoSPolicy>None</QoSPolicy>" in req_body
     assert '<Set operation="add">' in req_body
 
 
