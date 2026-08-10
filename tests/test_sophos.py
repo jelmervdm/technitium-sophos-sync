@@ -119,6 +119,62 @@ def test_upsert_clientless_user_success() -> None:
 
 
 @respx.mock
+def test_upsert_clientless_user_email_payload() -> None:
+    """Test that upsert includes Email tag with configured email domain."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+        email_domain="custom.domain",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status>200</Status>
+    </ClientlessUser>
+</Response>"""
+
+    route = respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    client.upsert_clientless_user(name="myhost", ip="10.0.0.5")
+    assert route.called
+    req_body = unquote(route.calls.last.request.content.decode("utf-8"))
+    assert "<Email>myhost@custom.domain</Email>" in req_body
+
+
+@respx.mock
+def test_parse_response_duplicate_attributes() -> None:
+    """Test that responses with duplicate XML attributes from Sophos Firewall are sanitized."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser transactionid="" transactionid="">
+        <UserName>device1</UserName>
+        <IPAddress>192.168.1.10</IPAddress>
+    </ClientlessUser>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    users = client.get_existing_clientless_users()
+    assert users == {"device1": "192.168.1.10"}
+
+
+@respx.mock
 def test_sophos_custom_api_version() -> None:
     """Test custom API version parameter in XML payload."""
     client = SophosClient(
@@ -154,5 +210,6 @@ def test_sophos_whitespace_stripping() -> None:
     assert client.username == "admin"
     assert client.password == "secretpassword"
     assert client.url == "https://192.168.1.1:4444/webconsole/APIController"
+
 
 

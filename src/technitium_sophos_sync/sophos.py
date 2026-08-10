@@ -1,6 +1,7 @@
 """Sophos Firewall API client for Clientless User management."""
 
 import logging
+import re
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape
 
@@ -24,6 +25,7 @@ class SophosClient:
         username: str = "admin",
         password: str = "",
         clientless_group: str = "Clientless Open Group",
+        email_domain: str = "dhcp.local",
         verify_ssl: bool = False,
         timeout: float = 15.0,
         api_version: str = "2200.1",
@@ -36,6 +38,7 @@ class SophosClient:
             username: Admin username.
             password: Admin password.
             clientless_group: Sophos Clientless Group Name.
+            email_domain: Domain suffix used for clientless user emails.
             verify_ssl: Whether to verify SSL certificate.
             timeout: HTTP timeout in seconds.
             api_version: Sophos API version string.
@@ -44,6 +47,7 @@ class SophosClient:
         self.username = username.strip()
         self.password = password.strip()
         self.clientless_group = clientless_group.strip()
+        self.email_domain = email_domain.strip().lstrip("@")
         self.verify_ssl = verify_ssl
         self.timeout = timeout
         self.api_version = api_version.strip()
@@ -63,8 +67,13 @@ class SophosClient:
         Raises:
             SophosClientError: If XML is invalid or authentication failed.
         """
+        # Sanitize duplicate XML attributes (e.g. transactionid="" transactionid="")
+        sanitized_xml = re.sub(
+            r'(\b[a-zA-Z_:][\w:.-]*\s*=\s*["\'][^"\']*["\'])\s+\1', r"\1", xml_text
+        )
+
         try:
-            root = ET.fromstring(xml_text)
+            root = ET.fromstring(sanitized_xml)
         except ET.ParseError as err:
             logger.error("Failed to parse Sophos API XML response: %s", err)
             raise SophosClientError(f"Invalid XML returned by Sophos Firewall: {err}") from err
@@ -146,6 +155,7 @@ class SophosClient:
         Raises:
             SophosClientError: On connection errors or authentication failures.
         """
+        email = f"{name}@{self.email_domain}"
         xml_request = f"""<?xml version="1.0" encoding="UTF-8"?>
 <Request APIVersion="{escape(self.api_version)}">
     <Login>
@@ -156,6 +166,7 @@ class SophosClient:
         <ClientlessUser>
             <UserName>{escape(name)}</UserName>
             <Name>{escape(name)}</Name>
+            <Email>{escape(email)}</Email>
             <IPAddress>{escape(ip)}</IPAddress>
             <ClientLessGroup>{escape(self.clientless_group)}</ClientLessGroup>
             <Status>Active</Status>

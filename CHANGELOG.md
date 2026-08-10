@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-08-10
+
+### Fixed
+- Added regex sanitization for Sophos Firewall XML API responses to automatically clean duplicate attributes (e.g. `transactionid="" transactionid=""`) that cause XML parsing errors.
+- Added mandatory `<Email>` element to Sophos `ClientlessUser` upsert payload to prevent "Configuration parameters validation failed" errors.
+
+### Added
+- Added `SOPHOS_EMAIL_DOMAIN` environment variable (default `dhcp.local`) and setting for configuring generated email addresses (`hostname@domain`).
+- Added `SOPHOS_FIREWALL_USER` and `SOPHOS_FIREWALL_PASSWORD` environment variable aliases to `config.py`.
+
 ## [0.1.6] - 2026-08-09
 
 ### Fixed

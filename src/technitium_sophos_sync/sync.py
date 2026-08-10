@@ -49,6 +49,7 @@ class SyncEngine:
             username=settings.sophos_user,
             password=settings.sophos_pass.get_secret_value(),
             clientless_group=settings.sophos_clientless_group,
+            email_domain=settings.sophos_email_domain,
             verify_ssl=settings.sophos_verify_ssl,
             timeout=settings.sophos_timeout,
             api_version=settings.sophos_api_version,

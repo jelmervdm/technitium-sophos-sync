@@ -55,17 +55,33 @@ class Settings(BaseSettings):
     )
     sophos_user: str = Field(
         default="admin",
-        validation_alias=AliasChoices("SOPHOS_USER", "SOPHOS_LOGIN", "SOPHOS_USERNAME"),
+        validation_alias=AliasChoices(
+            "SOPHOS_USER",
+            "SOPHOS_LOGIN",
+            "SOPHOS_USERNAME",
+            "SOPHOS_FIREWALL_USER",
+            "SOPHOS_FIREWALL_USERNAME",
+        ),
         description="Sophos Firewall API Admin Username / Login",
     )
     sophos_pass: SecretStr = Field(
         default=SecretStr(""),
-        validation_alias=AliasChoices("SOPHOS_PASS", "SOPHOS_PASSWORD"),
+        validation_alias=AliasChoices(
+            "SOPHOS_PASS",
+            "SOPHOS_PASSWORD",
+            "SOPHOS_FIREWALL_PASS",
+            "SOPHOS_FIREWALL_PASSWORD",
+        ),
         description="Sophos Firewall API Admin Password",
     )
     sophos_clientless_group: str = Field(
         default="Clientless Open Group",
         description="Sophos Clientless Group Name for synced users",
+    )
+    sophos_email_domain: str = Field(
+        default="dhcp.local",
+        validation_alias=AliasChoices("SOPHOS_EMAIL_DOMAIN"),
+        description="Default domain suffix for generated clientless user emails",
     )
     sophos_api_version: str = Field(
         default="2200.1",
