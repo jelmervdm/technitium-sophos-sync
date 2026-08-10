@@ -322,3 +322,77 @@ def test_parse_response_top_level_status_error() -> None:
 
     with pytest.raises(SophosClientError, match="API Access is not allowed"):
         client.get_existing_clientless_users()
+
+
+@respx.mock
+def test_get_existing_clientless_users_case_insensitive() -> None:
+    """Test retrieving existing Clientless Users indexes both UserName and Name with lowercasing."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <UserName>mac_main_heberhouses_com</UserName>
+        <Name>Mac_main_heberhouses_com</Name>
+        <IPAddress>10.20.1.13</IPAddress>
+    </ClientlessUser>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    users = client.get_existing_clientless_users()
+    assert users["mac_main_heberhouses_com"] == "10.20.1.13"
+    assert users["Mac_main_heberhouses_com"] == "10.20.1.13"
+
+
+@respx.mock
+def test_upsert_clientless_user_entity_exists_503_retry_success() -> None:
+    """Test that 503 on 'add' automatically retries with 'update' operation and succeeds."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    conflict_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status code="503">Entity having same parameter details already exists.</Status>
+    </ClientlessUser>
+</Response>"""
+
+    success_xml = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status code="200">Configuration applied successfully.</Status>
+    </ClientlessUser>
+</Response>"""
+
+    route = respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        side_effect=[
+            Response(200, text=conflict_xml),
+            Response(200, text=success_xml),
+        ]
+    )
+
+    result = client.upsert_clientless_user(name="existing_user", ip="192.168.1.50", operation="add")
+    assert result is True
+    assert route.call_count == 2
+    req1 = unquote_plus(route.calls[0].request.content.decode("utf-8"))
+    req2 = unquote_plus(route.calls[1].request.content.decode("utf-8"))
+    assert '<Set operation="add">' in req1
+    assert '<Set operation="update">' in req2
+

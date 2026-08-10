@@ -77,7 +77,9 @@ class SyncEngine:
             name = lease.name
             ip = lease.ip
 
-            if name not in existing_users:
+            existing_ip = existing_users.get(name) or existing_users.get(name.lower())
+
+            if existing_ip is None:
                 if self.settings.dry_run:
                     logger.info("[DRY-RUN] Would CREATE Clientless User: %s -> %s", name, ip)
                     result.created += 1
@@ -105,8 +107,8 @@ class SyncEngine:
                         )
                         result.errors += 1
 
-            elif existing_users[name] != ip:
-                old_ip = existing_users[name]
+            elif existing_ip != ip:
+                old_ip = existing_ip
                 if self.settings.dry_run:
                     logger.info("[DRY-RUN] Would UPDATE IP for %s: %s -> %s", name, old_ip, ip)
                     result.updated += 1
