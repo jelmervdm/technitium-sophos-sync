@@ -40,10 +40,26 @@ This allows Sophos Firewall security policies, web filtering, and user-based rep
 
 ## Quick Start
 
-### Installation via Pip
+### Installation
+
+#### Option 1: Direct via Git (Pip / Pipx / uv)
 
 ```bash
-pip install technitium-sophos-sync
+# Install directly from GitHub via pip
+pip install git+https://github.com/jelmervdm/technitium-sophos-sync.git
+
+# Or install as an isolated CLI tool with pipx or uv
+pipx install git+https://github.com/jelmervdm/technitium-sophos-sync.git
+# or
+uv tool install git+https://github.com/jelmervdm/technitium-sophos-sync.git
+```
+
+#### Option 2: From Source
+
+```bash
+git clone https://github.com/jelmervdm/technitium-sophos-sync.git
+cd technitium-sophos-sync
+pip install .
 ```
 
 ### Environment Configuration
