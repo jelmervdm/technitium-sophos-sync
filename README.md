@@ -10,6 +10,44 @@ This allows Sophos Firewall security policies, web filtering, and user-based rep
 
 ---
 
+## About
+
+`technitium-sophos-sync` bridges the gap between **Technitium DNS/DHCP Server** lease management and **Sophos Firewall (SFOS)** identity-aware security policies.
+
+### Problem Statement
+
+In modern network environments, Technitium handles dynamic and static DHCP lease allocations for devices across various subnets. However, Sophos Firewall relies on **Clientless Users** (IP-to-identity mappings) to enforce user-level firewall rules, web filtering, quota management, and detailed traffic reporting.
+
+Without automated synchronization:
+- Administrators must manually register and maintain Clientless User entries in Sophos Firewall whenever devices join, renew, or change IP addresses.
+- Firewall logs and reports display raw IP addresses rather than human-readable device hostnames, complicating security monitoring and incident response.
+
+### How It Works
+
+```text
+┌─────────────────────────────────┐                 ┌──────────────────────────────────┐
+│  Technitium DNS / DHCP Server   │                 │   Sophos Firewall (SFOS API)     │
+│  - Active & Reserved Leases     │                 │   - Clientless Users             │
+│  - Hostnames & IP Assignments   │                 │   - User Groups & Security Rules │
+└────────────────┬────────────────┘                 └────────────────▲─────────────────┘
+                 │                                                   │
+                 │ 1. Fetch Leases (dhcp/leases/get)                 │ 2. Upsert Clientless Users
+                 └──────────────────►  technitium-sophos-sync  ──────┘
+                                        - Hostname Sanitization
+                                        - Disambiguation & Conflict Checks
+                                        - Dry-Run & Safety Validation
+```
+
+1. **Lease Extraction**: Queries Technitium's REST API (`/api/dhcp/leases/get`) to retrieve active and static DHCP lease records.
+2. **Sanitization & Resolution**:
+   - Sanitizes hostnames to comply with Sophos Firewall naming rules (handling special characters, spaces, and length restrictions).
+   - Resolves MAC and hostname collisions with automatic suffixing and conflict checks.
+3. **Sophos Synchronization**:
+   - Interacts with Sophos Firewall via its XML API (`APIController`).
+   - Automatically creates or updates Clientless User records and assigns them to configured Sophos User Groups.
+
+---
+
 ## Features
 
 - **Automated Synchronization**: Fetches DHCP active leases from Technitium API and maps them to Clientless Users in Sophos Firewall.

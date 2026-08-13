@@ -40,6 +40,8 @@ dev = [
 Homepage = "https://github.com/jelmervdm/technitium-sophos-sync"
 Repository = "https://github.com/jelmervdm/technitium-sophos-sync"
 Issues = "https://github.com/jelmervdm/technitium-sophos-sync/issues"
+Changelog = "https://github.com/jelmervdm/technitium-sophos-sync/blob/main/CHANGELOG.md"
+"Container Image" = "https://github.com/jelmervdm/technitium-sophos-sync/pkgs/container/technitium-sophos-sync"
 
 [project.scripts]
 technitium-sophos-sync = "technitium_sophos_sync.cli:main"
