@@ -597,7 +597,7 @@ wheels = [
 
 [[package]]
 name = "technitium-sophos-sync"
-version = "0.2.2"
+version = "0.2.3.dev3"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

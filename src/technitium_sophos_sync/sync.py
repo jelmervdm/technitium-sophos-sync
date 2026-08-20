@@ -151,7 +151,8 @@ class SyncEngine:
                     if self.settings.resolve_ip_conflicts:
                         if self.settings.dry_run:
                             logger.info(
-                                "[DRY-RUN] IP conflict on %s: Would DELETE conflicting Sophos user '%s' to create '%s'",
+                                "[DRY-RUN] IP conflict on %s: "
+                                "Would DELETE conflicting Sophos user '%s' to create '%s'",
                                 ip,
                                 existing_owner,
                                 name,
@@ -159,7 +160,8 @@ class SyncEngine:
                             result.deleted += 1
                         else:
                             logger.info(
-                                "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to assign IP to '%s'",
+                                "[- REMOVE] IP conflict on %s: "
+                                "Deleting conflicting Sophos user '%s' to assign IP to '%s'",
                                 ip,
                                 existing_owner,
                                 name,
@@ -227,7 +229,8 @@ class SyncEngine:
                     if self.settings.resolve_ip_conflicts:
                         if self.settings.dry_run:
                             logger.info(
-                                "[DRY-RUN] IP conflict on %s: Would DELETE conflicting Sophos user '%s' to update '%s'",
+                                "[DRY-RUN] IP conflict on %s: "
+                                "Would DELETE conflicting Sophos user '%s' to update '%s'",
                                 ip,
                                 existing_owner,
                                 name,
@@ -235,7 +238,8 @@ class SyncEngine:
                             result.deleted += 1
                         else:
                             logger.info(
-                                "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to update '%s'",
+                                "[- REMOVE] IP conflict on %s: "
+                                "Deleting conflicting Sophos user '%s' to update '%s'",
                                 ip,
                                 existing_owner,
                                 name,

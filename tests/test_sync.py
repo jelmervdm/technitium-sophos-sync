@@ -162,7 +162,9 @@ def test_prepare_lease_names_modes() -> None:
 
 
 def test_sync_engine_ip_conflict_skipping_when_disabled(mock_settings: Settings) -> None:
-    """Test that leases targeting an IP bound to a different Sophos user are skipped when resolve_ip_conflicts=False."""
+    """Test that leases targeting an IP bound to a different Sophos user are skipped
+    when resolve_ip_conflicts=False.
+    """
     from technitium_sophos_sync.sophos import SophosUsersState
 
     mock_settings.resolve_ip_conflicts = False
@@ -252,7 +254,9 @@ def test_sync_engine_ip_conflict_resolution_when_enabled(mock_settings: Settings
 
 
 def test_sync_engine_ip_conflict_resolution_dry_run(mock_settings: Settings) -> None:
-    """Test that dry run skips calling delete_clientless_user and upsert_clientless_user on conflict."""
+    """Test that dry run skips calling delete_clientless_user and
+    upsert_clientless_user on conflict.
+    """
     from technitium_sophos_sync.sophos import SophosUsersState
 
     mock_settings.resolve_ip_conflicts = True

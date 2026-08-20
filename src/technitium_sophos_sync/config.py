@@ -147,7 +147,10 @@ class Settings(BaseSettings):
     resolve_ip_conflicts: bool = Field(
         default=True,
         validation_alias=AliasChoices("RESOLVE_IP_CONFLICTS", "OVERWRITE_IP_CONFLICTS"),
-        description="If True, automatically delete conflicting Clientless Users on Sophos Firewall when Technitium assigns their IP to a different host",
+        description=(
+            "If True, automatically delete conflicting Clientless Users on Sophos Firewall "
+            "when Technitium assigns their IP to a different host"
+        ),
     )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
