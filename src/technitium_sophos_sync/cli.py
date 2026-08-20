@@ -133,7 +133,10 @@ def setup_logging(level_name: str) -> None:
     "resolve_ip_conflicts",
     default=None,
     envvar="RESOLVE_IP_CONFLICTS",
-    help="Automatically delete conflicting Sophos clientless user when IP is assigned to another device in Technitium",
+    help=(
+        "Automatically delete conflicting Sophos clientless user "
+        "when IP is assigned to another device in Technitium"
+    ),
 )
 @click.option(
     "--once",
