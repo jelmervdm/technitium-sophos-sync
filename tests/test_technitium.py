@@ -48,21 +48,29 @@ def test_get_dhcp_leases_success() -> None:
         },
     }
 
-    mock_scopes_response = {
+    mock_scopes_list_response = {
         "status": "ok",
         "response": {
             "scopes": [
                 {
                     "name": "LAN Scope",
-                    "reservedLeases": [
-                        {
-                            "hostName": "offline-static-server",
-                            "ipAddress": "192.168.1.200",
-                            "hardwareAddress": "11-22-33-44-55-66",
-                        }
-                    ],
+                    "enabled": True,
                 }
             ]
+        },
+    }
+
+    mock_scope_detail_response = {
+        "status": "ok",
+        "response": {
+            "name": "LAN Scope",
+            "reservedLeases": [
+                {
+                    "hostName": "offline-static-server",
+                    "address": "192.168.1.200",
+                    "hardwareAddress": "11-22-33-44-55-66",
+                }
+            ],
         },
     }
 
@@ -70,7 +78,10 @@ def test_get_dhcp_leases_success() -> None:
         return_value=Response(200, json=mock_leases_response)
     )
     respx.get("http://technitium.local:5380/api/dhcp/scopes/list").mock(
-        return_value=Response(200, json=mock_scopes_response)
+        return_value=Response(200, json=mock_scopes_list_response)
+    )
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/get").mock(
+        return_value=Response(200, json=mock_scope_detail_response)
     )
 
     leases = client.get_dhcp_leases(static_leases_only=False)
@@ -115,21 +126,28 @@ def test_get_dhcp_leases_static_only() -> None:
         },
     }
 
-    mock_scopes_response = {
+    mock_scopes_list_response = {
         "status": "ok",
         "response": {
             "scopes": [
                 {
                     "name": "LAN Scope",
-                    "reservedLeases": [
-                        {
-                            "hostName": "offline-static-nas",
-                            "ipAddress": "192.168.1.20",
-                            "hardwareAddress": "77-88-99",
-                        }
-                    ],
                 }
             ]
+        },
+    }
+
+    mock_scope_detail_response = {
+        "status": "ok",
+        "response": {
+            "name": "LAN Scope",
+            "reservedLeases": [
+                {
+                    "hostName": "offline-static-nas",
+                    "address": "192.168.1.20",
+                    "hardwareAddress": "77-88-99",
+                }
+            ],
         },
     }
 
@@ -137,7 +155,10 @@ def test_get_dhcp_leases_static_only() -> None:
         return_value=Response(200, json=mock_leases_response)
     )
     respx.get("http://technitium.local:5380/api/dhcp/scopes/list").mock(
-        return_value=Response(200, json=mock_scopes_response)
+        return_value=Response(200, json=mock_scopes_list_response)
+    )
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/get").mock(
+        return_value=Response(200, json=mock_scope_detail_response)
     )
 
     leases = client.get_dhcp_leases(static_leases_only=True)
@@ -159,4 +180,54 @@ def test_get_dhcp_leases_api_error() -> None:
 
     with pytest.raises(TechnitiumClientError, match="Invalid authentication token"):
         client.get_dhcp_leases()
+
+
+@respx.mock
+def test_get_dhcp_scope_reservations_with_empty_reserved_leases_in_list() -> None:
+    """Test fetching scope reservations when scopes/list returns empty reservedLeases list."""
+    client = TechnitiumClient(base_url="http://technitium.local:5380", token="secret_token")
+
+    mock_scopes_list_response = {
+        "status": "ok",
+        "response": {
+            "scopes": [
+                {
+                    "name": "Scope_10_50",
+                    "reservedLeases": [],
+                }
+            ]
+        },
+    }
+
+    mock_scope_detail_response = {
+        "status": "ok",
+        "response": {
+            "name": "Scope_10_50",
+            "reservedLeases": [
+                {
+                    "hostName": "MacBookAir_guest",
+                    "address": "10.50.1.4",
+                    "hardwareAddress": "AA-BB-CC-DD-EE-FF",
+                }
+            ],
+        },
+    }
+
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/list").mock(
+        return_value=Response(200, json=mock_scopes_list_response)
+    )
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/get").mock(
+        return_value=Response(200, json=mock_scope_detail_response)
+    )
+
+    reservations = client.get_dhcp_scope_reservations()
+    assert len(reservations) == 1
+    assert reservations[0] == DHCPLease(
+        name="MacBookAir_guest",
+        ip="10.50.1.4",
+        mac="AA-BB-CC-DD-EE-FF",
+        is_reserved=True,
+    )
+
+
 

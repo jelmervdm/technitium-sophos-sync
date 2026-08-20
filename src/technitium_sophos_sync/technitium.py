@@ -64,56 +64,122 @@ class TechnitiumClient:
         Returns:
             List of parsed DHCPLease instances representing scope reservations.
         """
-        url = f"{self.base_url}/api/dhcp/scopes/list"
+        scopes_url = f"{self.base_url}/api/dhcp/scopes/list"
         params = {"token": self.token}
 
         try:
             with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(url, params=params)
+                response = client.get(scopes_url, params=params)
                 response.raise_for_status()
                 data: dict[str, Any] = response.json()
+
+                if data.get("status") != "ok":
+                    error_msg = data.get("errorMessage", "Unknown error")
+                    logger.warning("Technitium scopes API returned error status: %s", error_msg)
+                    return []
+
+                raw_scopes = data.get("response")
+                if isinstance(raw_scopes, list):
+                    scopes = raw_scopes
+                elif isinstance(raw_scopes, dict):
+                    scopes = raw_scopes.get("scopes", [])
+                else:
+                    scopes = []
+
+                reservations: list[DHCPLease] = []
+
+                for scope in scopes:
+                    if not isinstance(scope, dict):
+                        continue
+
+                    reserved_list = (
+                        scope.get("reservedLeases")
+                        or scope.get("staticLeases")
+                        or scope.get("reservations")
+                    )
+
+                    scope_name = scope.get("name")
+                    if not reserved_list and scope_name:
+                        get_url = f"{self.base_url}/api/dhcp/scopes/get"
+                        try:
+                            get_resp = client.get(
+                                get_url, params={"token": self.token, "name": scope_name}
+                            )
+                            if get_resp.status_code == 200:
+                                get_data = get_resp.json()
+                                if get_data.get("status") == "ok":
+                                    resp_obj = get_data.get("response")
+                                    if isinstance(resp_obj, dict):
+                                        scope_detail = resp_obj
+                                    elif isinstance(resp_obj, list) and resp_obj:
+                                        scope_detail = resp_obj[0]
+                                    else:
+                                        scope_detail = {}
+
+                                    reserved_list = (
+                                        scope_detail.get("reservedLeases")
+                                        or scope_detail.get("staticLeases")
+                                        or scope_detail.get("reservations")
+                                    )
+                        except httpx.HTTPError as get_err:
+                            logger.warning(
+                                "Error fetching scope details for '%s': %s", scope_name, get_err
+                            )
+
+                    if not reserved_list or not isinstance(reserved_list, list):
+                        continue
+
+                    for item in reserved_list:
+                        if not isinstance(item, dict):
+                            continue
+
+                        raw_hostname = (
+                            item.get("hostName")
+                            or item.get("hostname")
+                            or item.get("name")
+                            or item.get("leaseName")
+                            or item.get("clientName")
+                            or item.get("comments")
+                            or item.get("comment")
+                            or item.get("description")
+                        )
+                        raw_mac = (
+                            item.get("hardwareAddress")
+                            or item.get("macAddress")
+                            or item.get("mac")
+                            or item.get("clientIdentifier")
+                        )
+                        ip_address = (
+                            item.get("ipAddress")
+                            or item.get("address")
+                            or item.get("ip")
+                        )
+
+                        if not ip_address:
+                            continue
+
+                        clean_name = self.sanitize_hostname(raw_hostname, raw_mac)
+                        reservations.append(
+                            DHCPLease(
+                                name=clean_name,
+                                ip=ip_address,
+                                mac=raw_mac or "",
+                                is_reserved=True,
+                            )
+                        )
+
+                logger.info(
+                    "Fetched %d static scope reservations from Technitium server",
+                    len(reservations),
+                )
+                return reservations
+
         except httpx.HTTPError as err:
             logger.warning("HTTP error fetching Technitium DHCP scopes: %s", err)
             return []
         except ValueError as err:
             logger.warning("Failed to parse JSON response for Technitium DHCP scopes: %s", err)
             return []
-
-        if data.get("status") != "ok":
-            error_msg = data.get("errorMessage", "Unknown error")
-            logger.warning("Technitium scopes API returned error status: %s", error_msg)
-            return []
-
-        scopes = data.get("response", {}).get("scopes", [])
-        reservations: list[DHCPLease] = []
-
-        for scope in scopes:
-            reserved_list = (
-                scope.get("reservedLeases")
-                or scope.get("staticLeases")
-                or scope.get("reservations")
-                or []
-            )
-            for item in reserved_list:
-                raw_hostname = item.get("hostName") or item.get("hostname") or item.get("name")
-                raw_mac = item.get("macAddress") or item.get("hardwareAddress") or item.get("mac")
-                ip_address = item.get("ipAddress") or item.get("address") or item.get("ip")
-
-                if not ip_address:
-                    continue
-
-                clean_name = self.sanitize_hostname(raw_hostname, raw_mac)
-                reservations.append(
-                    DHCPLease(
-                        name=clean_name,
-                        ip=ip_address,
-                        mac=raw_mac or "",
-                        is_reserved=True,
-                    )
-                )
-
-        logger.debug("Fetched %d scope reservations from Technitium server", len(reservations))
-        return reservations
 
     def get_dhcp_leases(self, static_leases_only: bool = False) -> list[DHCPLease]:
         """Fetch DHCP leases (active leases and scope static reservations) from Technitium server.
@@ -179,15 +245,17 @@ class TechnitiumClient:
             if res.ip not in leases_by_ip:
                 leases_by_ip[res.ip] = res
             else:
-                # Upgrade existing lease record to is_reserved if scope defines a reservation
                 existing = leases_by_ip[res.ip]
-                if not existing.is_reserved:
-                    leases_by_ip[res.ip] = DHCPLease(
-                        name=existing.name,
-                        ip=existing.ip,
-                        mac=existing.mac or res.mac,
-                        is_reserved=True,
-                    )
+                chosen_name = existing.name
+                if existing.name.startswith("Device_") and not res.name.startswith("Device_"):
+                    chosen_name = res.name
+
+                leases_by_ip[res.ip] = DHCPLease(
+                    name=chosen_name,
+                    ip=existing.ip,
+                    mac=existing.mac or res.mac,
+                    is_reserved=True,
+                )
 
         final_leases = list(leases_by_ip.values())
         if static_leases_only:
