@@ -5,13 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.2.3-dev.3] - 2026-08-20
+## [0.2.4] - 2026-08-20
 
 ### Added
-- Added `deleted` metric to `SyncResult` and included `Deleted` count in the sync finish summary log output (e.g. `Summary: Total=88, Created=4, Updated=3, Deleted=5, Unchanged=81, Errors=0`).
-- Added automatic resolution for IP address conflicts between Technitium DHCP leases/reservations and existing Sophos Firewall Clientless Users (`resolve_ip_conflicts`).
-- Added `delete_clientless_user` method to `SophosClient`.
-- Added `RESOLVE_IP_CONFLICTS` environment variable setting and `--resolve-ip-conflicts / --no-resolve-ip-conflicts` CLI option.
+- Added support for fetching static DHCP scope reservations (`/api/dhcp/scopes/list`) alongside active leases (`/api/dhcp/leases/list`) in Technitium server, enabling sync for offline devices and static IP reservations.
+- Added automatic resolution for IP address conflicts (`resolve_ip_conflicts`). When Technitium assigns an IP address currently registered to a different Sophos Clientless User, the engine automatically deletes the stale user on Sophos Firewall and registers the new host.
+- Added `delete_clientless_user` method to `SophosClient` for removing Clientless Users via Sophos XML API.
+- Added `deleted` tracking to `SyncResult` and updated the final summary log to include `Deleted` count (e.g. `Summary: Total=88, Created=4, Updated=3, Deleted=1, Unchanged=80, Errors=0`).
+- Added `RESOLVE_IP_CONFLICTS` environment variable setting and `--resolve-ip-conflicts / --no-resolve-ip-conflicts` CLI flag.
 
 ## [0.2.3] - 2026-08-20
 
