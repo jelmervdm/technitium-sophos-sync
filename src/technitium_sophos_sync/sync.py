@@ -72,6 +72,7 @@ class SyncResult:
     total_leases: int = 0
     created: int = 0
     updated: int = 0
+    deleted: int = 0
     unchanged: int = 0
     errors: int = 0
 
@@ -155,6 +156,7 @@ class SyncEngine:
                                 existing_owner,
                                 name,
                             )
+                            result.deleted += 1
                         else:
                             logger.info(
                                 "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to assign IP to '%s'",
@@ -164,6 +166,7 @@ class SyncEngine:
                             )
                             try:
                                 self.sophos.delete_clientless_user(existing_owner)
+                                result.deleted += 1
                                 existing_by_ip.pop(ip, None)
                                 existing_by_name.pop(existing_owner, None)
                                 existing_by_name.pop(existing_owner.lower(), None)
@@ -229,6 +232,7 @@ class SyncEngine:
                                 existing_owner,
                                 name,
                             )
+                            result.deleted += 1
                         else:
                             logger.info(
                                 "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to update '%s'",
@@ -238,6 +242,7 @@ class SyncEngine:
                             )
                             try:
                                 self.sophos.delete_clientless_user(existing_owner)
+                                result.deleted += 1
                                 existing_by_ip.pop(ip, None)
                                 existing_by_name.pop(existing_owner, None)
                                 existing_by_name.pop(existing_owner.lower(), None)
@@ -298,10 +303,11 @@ class SyncEngine:
 
         logger.info(
             "Sync Cycle Finished. Summary: Total=%d, Created=%d, Updated=%d, "
-            "Unchanged=%d, Errors=%d",
+            "Deleted=%d, Unchanged=%d, Errors=%d",
             result.total_leases,
             result.created,
             result.updated,
+            result.deleted,
             result.unchanged,
             result.errors,
         )

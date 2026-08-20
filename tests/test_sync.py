@@ -241,6 +241,7 @@ def test_sync_engine_ip_conflict_resolution_when_enabled(mock_settings: Settings
     assert result.total_leases == 1
     assert result.created == 1
     assert result.updated == 0
+    assert result.deleted == 1
     assert result.errors == 0
 
     # Ensure conflicting user was deleted and new user upserted
@@ -284,6 +285,7 @@ def test_sync_engine_ip_conflict_resolution_dry_run(mock_settings: Settings) -> 
 
     assert result.total_leases == 1
     assert result.created == 1
+    assert result.deleted == 1
     assert result.errors == 0
 
     mock_sophos.delete_clientless_user.assert_not_called()
