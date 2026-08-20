@@ -359,3 +359,88 @@ class SophosClient:
                 )
 
         return success
+
+    def delete_clientless_user(self, name: str) -> bool:
+        """Delete a Clientless User from Sophos Firewall.
+
+        Args:
+            name: User/Device name to remove.
+
+        Returns:
+            True if operation succeeded, False otherwise.
+
+        Raises:
+            SophosClientError: On connection errors or authentication failures.
+        """
+        xml_request = f"""<?xml version="1.0" encoding="UTF-8"?>
+<Request APIVersion="{escape(self.api_version)}">
+    <Login>
+        <Username>{escape(self.username)}</Username>
+        <Password>{escape(self.password)}</Password>
+    </Login>
+    <Remove>
+        <ClientlessUser>
+            <Name>{escape(name)}</Name>
+            <UserName>{escape(name)}</UserName>
+        </ClientlessUser>
+    </Remove>
+</Request>"""
+
+        logger.debug(
+            "Sending Sophos API Request [Remove ClientlessUser '%s']:\n%s",
+            name,
+            self._mask_xml(xml_request),
+        )
+
+        try:
+            with httpx.Client(verify=self.verify_ssl, timeout=self.timeout) as client:
+                response = client.post(self.url, data={"reqxml": xml_request})
+                response.raise_for_status()
+        except httpx.HTTPError as err:
+            logger.error("HTTP error deleting Clientless User '%s' (%s): %s", name, self.url, err)
+            raise SophosClientError(f"HTTP error during delete of '{name}': {err}") from err
+
+        logger.debug(
+            "Sophos API Response [Remove ClientlessUser '%s' - Status %d]:\n%s",
+            name,
+            response.status_code,
+            response.text,
+        )
+        root = self._parse_and_verify_response(response.text)
+
+        text = response.text
+        user_status_node = root.find(".//ClientlessUser/status")
+        if user_status_node is None:
+            user_status_node = root.find(".//ClientlessUser/Status")
+
+        user_status_text = (
+            (user_status_node.text or "").strip() if user_status_node is not None else ""
+        )
+        user_status_code = (
+            user_status_node.get("code", "").strip() if user_status_node is not None else ""
+        )
+
+        success = (
+            user_status_code == "200"
+            or "deleted" in user_status_text.lower()
+            or "removed" in user_status_text.lower()
+            or "configuration applied" in user_status_text.lower()
+            or "configuration updated" in user_status_text.lower()
+            or "<Status>200</Status>" in text
+            or '<Status code="200"' in text
+        )
+
+        if success:
+            logger.info("Successfully deleted Clientless User '%s' from Sophos Firewall.", name)
+        else:
+            logger.error(
+                "Sophos API response for deleting user '%s' did not indicate success. "
+                "Status text: '%s', code: '%s'. Full response XML:\n%s",
+                name,
+                user_status_text or "N/A",
+                user_status_code or "N/A",
+                text,
+            )
+
+        return success
+

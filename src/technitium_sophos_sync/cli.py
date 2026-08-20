@@ -129,6 +129,16 @@ def setup_logging(level_name: str) -> None:
     help="MAC address suffix mode for hostnames (duplicates_only, always, off)",
 )
 @click.option(
+    "--resolve-ip-conflicts/--no-resolve-ip-conflicts",
+    "resolve_ip_conflicts",
+    default=None,
+    envvar="RESOLVE_IP_CONFLICTS",
+    help=(
+        "Automatically delete conflicting Sophos clientless user "
+        "when IP is assigned to another device in Technitium"
+    ),
+)
+@click.option(
     "--once",
     is_flag=True,
     help="Force execution to run once and exit regardless of sync_interval",
@@ -156,6 +166,7 @@ def main(
     technitium_timeout: float | None,
     sync_interval: int | None,
     mac_disambiguation: str | None,
+    resolve_ip_conflicts: bool | None,
     once: bool,
     log_level: str | None,
 ) -> None:
@@ -194,6 +205,8 @@ def main(
         settings.sync_interval = sync_interval
     if mac_disambiguation is not None:
         settings.mac_disambiguation = mac_disambiguation.lower()  # type: ignore[assignment]
+    if resolve_ip_conflicts is not None:
+        settings.resolve_ip_conflicts = resolve_ip_conflicts
     if log_level is not None:
         settings.log_level = log_level.upper()  # type: ignore[assignment]
 
@@ -203,7 +216,7 @@ def main(
     logger.info(
         "Configuration: Technitium URL=%s, Sophos IP=%s:%d, User=%s, Group='%s', "
         "Email Domain='%s', Static Only=%s, Sync Interval=%ds, MAC Disambiguation='%s', "
-        "Verify SSL=%s, Log Level=%s",
+        "Resolve IP Conflicts=%s, Verify SSL=%s, Log Level=%s",
         settings.technitium_url,
         settings.sophos_firewall_ip,
         settings.sophos_firewall_port,
@@ -213,6 +226,7 @@ def main(
         settings.static_leases_only,
         settings.sync_interval,
         settings.mac_disambiguation,
+        settings.resolve_ip_conflicts,
         settings.sophos_verify_ssl,
         settings.log_level,
     )

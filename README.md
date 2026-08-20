@@ -161,6 +161,10 @@ Options:
   --dry-run / --no-dry-run    Log changes without executing API calls against Sophos
   --verify-ssl / --no-verify-ssl
                               Verify SSL certificate when connecting to Sophos Firewall API
+  --mac-disambiguation [duplicates_only|always|off]
+                              MAC address suffix mode for hostnames (default: duplicates_only)
+  --resolve-ip-conflicts / --no-resolve-ip-conflicts
+                              Automatically delete conflicting Sophos clientless user when IP is assigned to another device in Technitium
   -i, --interval INTEGER      Continuous sync interval in seconds (default: 0)
   --once                      Force execution to run once and exit
   -l, --log-level [DEBUG|INFO|WARNING|ERROR|CRITICAL]
@@ -185,6 +189,8 @@ Options:
 | `SOPHOS_VERIFY_SSL` | `false` | Enable/disable SSL certificate validation |
 | `SOPHOS_TIMEOUT` | `15.0` | HTTP request timeout for Sophos API (seconds) |
 | `STATIC_LEASES_ONLY` | `false` | Sync only reserved/static DHCP leases |
+| `MAC_DISAMBIGUATION` | `duplicates_only` | MAC address suffix mode (`duplicates_only`, `always`, `off`) |
+| `RESOLVE_IP_CONFLICTS` | `true` | Automatically delete conflicting Sophos clientless user when IP is reassigned |
 | `SYNC_INTERVAL` | `0` | Daemon mode polling interval in seconds (`0` for single-pass) |
 | `DRY_RUN` | `false` | Test sync logic without modifying Sophos Firewall |
 | `LOG_LEVEL` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |

@@ -161,9 +161,13 @@ def test_prepare_lease_names_modes() -> None:
     assert off_leases[1][1] == "HostB"
 
 
-def test_sync_engine_ip_conflict_skipping(mock_settings: Settings) -> None:
-    """Test that leases targeting an IP bound to a different Sophos user are skipped."""
+def test_sync_engine_ip_conflict_skipping_when_disabled(mock_settings: Settings) -> None:
+    """Test that leases targeting an IP bound to a different Sophos user are skipped
+    when resolve_ip_conflicts=False.
+    """
     from technitium_sophos_sync.sophos import SophosUsersState
+
+    mock_settings.resolve_ip_conflicts = False
 
     mock_tech = MagicMock()
     mock_sophos = MagicMock()
@@ -197,5 +201,97 @@ def test_sync_engine_ip_conflict_skipping(mock_settings: Settings) -> None:
     assert result.unchanged == 1
     assert result.errors == 0
 
-    # Ensure upsert_clientless_user was NOT called because IP is conflicted
+    # Ensure upsert and delete were NOT called because conflict resolution is disabled
+    mock_sophos.delete_clientless_user.assert_not_called()
     mock_sophos.upsert_clientless_user.assert_not_called()
+
+
+def test_sync_engine_ip_conflict_resolution_when_enabled(mock_settings: Settings) -> None:
+    """Test that conflicting user is deleted and new user created when resolve_ip_conflicts=True."""
+    from technitium_sophos_sync.sophos import SophosUsersState
+
+    mock_settings.resolve_ip_conflicts = True
+
+    mock_tech = MagicMock()
+    mock_sophos = MagicMock()
+
+    mock_tech.get_dhcp_leases.return_value = [
+        DHCPLease(
+            name="NewDHCPDevice",
+            ip="192.168.1.50",
+            mac="00-11-22-33-44-55",
+            is_reserved=False,
+        ),
+    ]
+
+    # IP 192.168.1.50 is owned by stale user 'stale_user' in Sophos
+    mock_sophos.get_existing_clientless_users_state.return_value = SophosUsersState(
+        by_name={"stale_user": "192.168.1.50"},
+        by_ip={"192.168.1.50": "stale_user"},
+    )
+    mock_sophos.delete_clientless_user.return_value = True
+    mock_sophos.upsert_clientless_user.return_value = True
+
+    engine = SyncEngine(
+        settings=mock_settings,
+        technitium_client=mock_tech,
+        sophos_client=mock_sophos,
+    )
+
+    result = engine.run_sync()
+
+    assert result.total_leases == 1
+    assert result.created == 1
+    assert result.updated == 0
+    assert result.deleted == 1
+    assert result.errors == 0
+
+    # Ensure conflicting user was deleted and new user upserted
+    mock_sophos.delete_clientless_user.assert_called_once_with("stale_user")
+    mock_sophos.upsert_clientless_user.assert_called_once_with(
+        "NewDHCPDevice", "192.168.1.50", operation="add"
+    )
+
+
+def test_sync_engine_ip_conflict_resolution_dry_run(mock_settings: Settings) -> None:
+    """Test that dry run skips calling delete_clientless_user and
+    upsert_clientless_user on conflict.
+    """
+    from technitium_sophos_sync.sophos import SophosUsersState
+
+    mock_settings.resolve_ip_conflicts = True
+    mock_settings.dry_run = True
+
+    mock_tech = MagicMock()
+    mock_sophos = MagicMock()
+
+    mock_tech.get_dhcp_leases.return_value = [
+        DHCPLease(
+            name="NewDHCPDevice",
+            ip="192.168.1.50",
+            mac="00-11-22-33-44-55",
+            is_reserved=False,
+        ),
+    ]
+
+    mock_sophos.get_existing_clientless_users_state.return_value = SophosUsersState(
+        by_name={"stale_user": "192.168.1.50"},
+        by_ip={"192.168.1.50": "stale_user"},
+    )
+
+    engine = SyncEngine(
+        settings=mock_settings,
+        technitium_client=mock_tech,
+        sophos_client=mock_sophos,
+    )
+
+    result = engine.run_sync()
+
+    assert result.total_leases == 1
+    assert result.created == 1
+    assert result.deleted == 1
+    assert result.errors == 0
+
+    mock_sophos.delete_clientless_user.assert_not_called()
+    mock_sophos.upsert_clientless_user.assert_not_called()
+

@@ -144,10 +144,19 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices("MAC_DISAMBIGUATION", "MAC_SUFFIX_MODE"),
         description="MAC disambiguation mode for user names (duplicates_only, always, off)",
     )
+    resolve_ip_conflicts: bool = Field(
+        default=True,
+        validation_alias=AliasChoices("RESOLVE_IP_CONFLICTS", "OVERWRITE_IP_CONFLICTS"),
+        description=(
+            "If True, automatically delete conflicting Clientless Users on Sophos Firewall "
+            "when Technitium assigns their IP to a different host"
+        ),
+    )
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(
         default="INFO",
         description="Logging verbosity level",
     )
+
 
     @property
     def sophos_api_url(self) -> str:

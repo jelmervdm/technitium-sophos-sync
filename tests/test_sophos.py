@@ -434,3 +434,61 @@ def test_get_existing_clientless_users_state() -> None:
     assert state.by_ip["192.168.1.50"] == "desktop_pc"
     assert state.by_ip["192.168.1.200"] == "printer_office"
 
+
+@respx.mock
+def test_delete_clientless_user_success() -> None:
+    """Test successful deletion of a Clientless User."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status code="200">Configuration applied successfully.</Status>
+    </ClientlessUser>
+</Response>"""
+
+    route = respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    result = client.delete_clientless_user(name="stale_user")
+    assert result is True
+    assert route.called
+    req_body = unquote_plus(route.calls.last.request.content.decode("utf-8"))
+    assert "<Remove>" in req_body
+    assert "<ClientlessUser>" in req_body
+    assert "<Name>stale_user</Name>" in req_body
+
+
+@respx.mock
+def test_delete_clientless_user_failure() -> None:
+    """Test failure when deleting a Clientless User."""
+    client = SophosClient(
+        firewall_ip="192.168.1.1",
+        password="secretpassword",
+    )
+
+    xml_response = """<?xml version="1.0" encoding="UTF-8"?>
+<Response APIVersion="2200.1">
+    <Login>
+        <status>Authentication Successful</status>
+    </Login>
+    <ClientlessUser>
+        <Status code="500">Operation failed.</Status>
+    </ClientlessUser>
+</Response>"""
+
+    respx.post("https://192.168.1.1:4444/webconsole/APIController").mock(
+        return_value=Response(200, text=xml_response)
+    )
+
+    result = client.delete_clientless_user(name="nonexistent_user")
+    assert result is False
+
+

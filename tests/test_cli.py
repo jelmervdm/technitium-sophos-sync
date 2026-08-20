@@ -113,3 +113,24 @@ def test_cli_auth_failure_exit(mock_engine_cls: MagicMock) -> None:
 
     assert result.exit_code == 1
     assert mock_engine.run_sync.call_count == 1
+
+
+@patch("technitium_sophos_sync.cli.SyncEngine")
+def test_cli_resolve_ip_conflicts(mock_engine_cls: MagicMock) -> None:
+    """Test specifying --resolve-ip-conflicts and --no-resolve-ip-conflicts CLI options."""
+    mock_engine = mock_engine_cls.return_value
+    mock_engine.run_sync.return_value = SyncResult(total_leases=0, created=0, updated=0)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        [
+            "--no-resolve-ip-conflicts",
+            "--once",
+        ],
+    )
+
+    assert result.exit_code == 0
+    settings_passed = mock_engine_cls.call_args.kwargs["settings"]
+    assert settings_passed.resolve_ip_conflicts is False
+
