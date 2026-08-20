@@ -142,7 +142,7 @@ def test_get_dhcp_leases_static_only() -> None:
 
     leases = client.get_dhcp_leases(static_leases_only=True)
     assert len(leases) == 2
-    names = {l.name for l in leases}
+    names = {lease.name for lease in leases}
     assert names == {"server1", "offline-static-nas"}
 
 
