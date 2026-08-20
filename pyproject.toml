@@ -1,6 +1,6 @@
 [project]
 name = "technitium-sophos-sync"
-version = "0.2.3-dev.3"
+version = "0.2.4"
 description = "Automated sync utility between Technitium DNS/DHCP server leases and Sophos Firewall Clientless Users"
 readme = "README.md"
 license = {text = "MIT"}
