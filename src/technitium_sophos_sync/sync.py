@@ -147,15 +147,48 @@ class SyncEngine:
                 # Check if IP is already claimed by a different Sophos user (IP conflict)
                 existing_owner = existing_by_ip.get(ip)
                 if existing_owner and existing_owner.lower() != name.lower():
-                    logger.info(
-                        "[= SKIP] IP %s is already assigned to existing Sophos user '%s'; "
-                        "skipping creation of '%s'",
-                        ip,
-                        existing_owner,
-                        name,
-                    )
-                    result.unchanged += 1
-                    continue
+                    if self.settings.resolve_ip_conflicts:
+                        if self.settings.dry_run:
+                            logger.info(
+                                "[DRY-RUN] IP conflict on %s: Would DELETE conflicting Sophos user '%s' to create '%s'",
+                                ip,
+                                existing_owner,
+                                name,
+                            )
+                        else:
+                            logger.info(
+                                "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to assign IP to '%s'",
+                                ip,
+                                existing_owner,
+                                name,
+                            )
+                            try:
+                                self.sophos.delete_clientless_user(existing_owner)
+                                existing_by_ip.pop(ip, None)
+                                existing_by_name.pop(existing_owner, None)
+                                existing_by_name.pop(existing_owner.lower(), None)
+                            except SophosAuthError:
+                                raise
+                            except Exception as err:
+                                logger.error(
+                                    "Failed to delete conflicting Sophos user '%s' for IP %s: %s",
+                                    existing_owner,
+                                    ip,
+                                    err,
+                                )
+                                result.errors += 1
+                                continue
+                    else:
+                        logger.info(
+                            "[= SKIP] IP %s is already assigned to existing Sophos user '%s'; "
+                            "skipping creation of '%s'",
+                            ip,
+                            existing_owner,
+                            name,
+                        )
+                        result.unchanged += 1
+                        continue
+
                 if self.settings.dry_run:
                     logger.info("[DRY-RUN] Would CREATE Clientless User: %s -> %s", name, ip)
                     result.created += 1
@@ -185,6 +218,51 @@ class SyncEngine:
 
             elif existing_ip != ip:
                 old_ip = existing_ip
+                # Check if new target IP is claimed by another user
+                existing_owner = existing_by_ip.get(ip)
+                if existing_owner and existing_owner.lower() != name.lower():
+                    if self.settings.resolve_ip_conflicts:
+                        if self.settings.dry_run:
+                            logger.info(
+                                "[DRY-RUN] IP conflict on %s: Would DELETE conflicting Sophos user '%s' to update '%s'",
+                                ip,
+                                existing_owner,
+                                name,
+                            )
+                        else:
+                            logger.info(
+                                "[- REMOVE] IP conflict on %s: Deleting conflicting Sophos user '%s' to update '%s'",
+                                ip,
+                                existing_owner,
+                                name,
+                            )
+                            try:
+                                self.sophos.delete_clientless_user(existing_owner)
+                                existing_by_ip.pop(ip, None)
+                                existing_by_name.pop(existing_owner, None)
+                                existing_by_name.pop(existing_owner.lower(), None)
+                            except SophosAuthError:
+                                raise
+                            except Exception as err:
+                                logger.error(
+                                    "Failed to delete conflicting Sophos user '%s' for IP %s: %s",
+                                    existing_owner,
+                                    ip,
+                                    err,
+                                )
+                                result.errors += 1
+                                continue
+                    else:
+                        logger.info(
+                            "[= SKIP] IP %s is already assigned to existing Sophos user '%s'; "
+                            "skipping update of '%s'",
+                            ip,
+                            existing_owner,
+                            name,
+                        )
+                        result.unchanged += 1
+                        continue
+
                 if self.settings.dry_run:
                     logger.info("[DRY-RUN] Would UPDATE IP for %s: %s -> %s", name, old_ip, ip)
                     result.updated += 1
@@ -213,6 +291,7 @@ class SyncEngine:
                             exc_info=True,
                         )
                         result.errors += 1
+
             else:
                 logger.debug("[= MATCH] %s -> %s already up to date", name, ip)
                 result.unchanged += 1

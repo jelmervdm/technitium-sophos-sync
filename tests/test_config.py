@@ -23,6 +23,7 @@ def test_settings_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.max_consecutive_failures == 3
     assert settings.exit_on_auth_failure is True
     assert settings.mac_disambiguation == "duplicates_only"
+    assert settings.resolve_ip_conflicts is True
     assert settings.log_level == "INFO"
     assert settings.sophos_api_url == "https://192.168.1.1:4444/webconsole/APIController"
 
@@ -40,6 +41,7 @@ def test_settings_custom_values() -> None:
         max_consecutive_failures=5,
         exit_on_auth_failure=False,
         mac_disambiguation="always",
+        resolve_ip_conflicts=False,
     )
     assert settings.technitium_url == "https://dns.example.com"
     assert settings.sophos_api_url == "https://10.0.0.1:8443/webconsole/APIController"
@@ -48,6 +50,7 @@ def test_settings_custom_values() -> None:
     assert settings.max_consecutive_failures == 5
     assert settings.exit_on_auth_failure is False
     assert settings.mac_disambiguation == "always"
+    assert settings.resolve_ip_conflicts is False
 
 
 def test_settings_aliases(monkeypatch: pytest.MonkeyPatch) -> None:
