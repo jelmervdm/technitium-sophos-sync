@@ -58,8 +58,65 @@ class TechnitiumClient:
         clean_name = re.sub(r"[^a-zA-Z0-9_\-]", "_", hostname)[:60]
         return clean_name or "Device_Unknown"
 
+    def get_dhcp_scope_reservations(self) -> list[DHCPLease]:
+        """Fetch configured static reservations from Technitium DHCP scopes.
+
+        Returns:
+            List of parsed DHCPLease instances representing scope reservations.
+        """
+        url = f"{self.base_url}/api/dhcp/scopes/list"
+        params = {"token": self.token}
+
+        try:
+            with httpx.Client(timeout=self.timeout) as client:
+                response = client.get(url, params=params)
+                response.raise_for_status()
+                data: dict[str, Any] = response.json()
+        except httpx.HTTPError as err:
+            logger.warning("HTTP error fetching Technitium DHCP scopes: %s", err)
+            return []
+        except ValueError as err:
+            logger.warning("Failed to parse JSON response for Technitium DHCP scopes: %s", err)
+            return []
+
+        if data.get("status") != "ok":
+            error_msg = data.get("errorMessage", "Unknown error")
+            logger.warning("Technitium scopes API returned error status: %s", error_msg)
+            return []
+
+        scopes = data.get("response", {}).get("scopes", [])
+        reservations: list[DHCPLease] = []
+
+        for scope in scopes:
+            reserved_list = (
+                scope.get("reservedLeases")
+                or scope.get("staticLeases")
+                or scope.get("reservations")
+                or []
+            )
+            for item in reserved_list:
+                raw_hostname = item.get("hostName") or item.get("hostname") or item.get("name")
+                raw_mac = item.get("macAddress") or item.get("hardwareAddress") or item.get("mac")
+                ip_address = item.get("ipAddress") or item.get("address") or item.get("ip")
+
+                if not ip_address:
+                    continue
+
+                clean_name = self.sanitize_hostname(raw_hostname, raw_mac)
+                reservations.append(
+                    DHCPLease(
+                        name=clean_name,
+                        ip=ip_address,
+                        mac=raw_mac or "",
+                        is_reserved=True,
+                    )
+                )
+
+        logger.debug("Fetched %d scope reservations from Technitium server", len(reservations))
+        return reservations
+
     def get_dhcp_leases(self, static_leases_only: bool = False) -> list[DHCPLease]:
-        """Fetch active DHCP leases from Technitium server.
+        """Fetch DHCP leases (active leases and scope static reservations) from Technitium server.
 
         Args:
             static_leases_only: If True, filter out dynamic/unreserved leases.
@@ -91,7 +148,7 @@ class TechnitiumClient:
             raise TechnitiumClientError(f"Technitium API error: {error_msg}")
 
         raw_leases = data.get("response", {}).get("leases", [])
-        leases: list[DHCPLease] = []
+        leases_by_ip: dict[str, DHCPLease] = {}
 
         for lease in raw_leases:
             is_reserved = bool(
@@ -99,8 +156,6 @@ class TechnitiumClient:
                 or lease.get("isStatic", False)
                 or lease.get("type") == "Reserved"
             )
-            if static_leases_only and not is_reserved:
-                continue
 
             raw_hostname = lease.get("hostName") or lease.get("hostname") or lease.get("name")
             raw_mac = lease.get("macAddress") or lease.get("hardwareAddress") or lease.get("mac")
@@ -111,14 +166,33 @@ class TechnitiumClient:
                 continue
 
             clean_name = self.sanitize_hostname(raw_hostname, raw_mac)
-            leases.append(
-                DHCPLease(
-                    name=clean_name,
-                    ip=ip_address,
-                    mac=raw_mac or "",
-                    is_reserved=is_reserved,
-                )
+            leases_by_ip[ip_address] = DHCPLease(
+                name=clean_name,
+                ip=ip_address,
+                mac=raw_mac or "",
+                is_reserved=is_reserved,
             )
 
-        logger.debug("Fetched %d leases from Technitium server", len(leases))
-        return leases
+        # Also fetch static reservations defined in DHCP scopes
+        scope_reservations = self.get_dhcp_scope_reservations()
+        for res in scope_reservations:
+            if res.ip not in leases_by_ip:
+                leases_by_ip[res.ip] = res
+            else:
+                # Upgrade existing lease record to is_reserved if scope defines a reservation
+                existing = leases_by_ip[res.ip]
+                if not existing.is_reserved:
+                    leases_by_ip[res.ip] = DHCPLease(
+                        name=existing.name,
+                        ip=existing.ip,
+                        mac=existing.mac or res.mac,
+                        is_reserved=True,
+                    )
+
+        final_leases = list(leases_by_ip.values())
+        if static_leases_only:
+            final_leases = [lease for lease in final_leases if lease.is_reserved]
+
+        logger.debug("Fetched %d total leases from Technitium server", len(final_leases))
+        return final_leases
+

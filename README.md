@@ -27,18 +27,19 @@ Without automated synchronization:
 ```text
 ┌─────────────────────────────────┐                 ┌──────────────────────────────────┐
 │  Technitium DNS / DHCP Server   │                 │   Sophos Firewall (SFOS API)     │
-│  - Active & Reserved Leases     │                 │   - Clientless Users             │
+│  - Active Leases & Reservations │                 │   - Clientless Users             │
 │  - Hostnames & IP Assignments   │                 │   - User Groups & Security Rules │
 └────────────────┬────────────────┘                 └────────────────▲─────────────────┘
                  │                                                   │
-                 │ 1. Fetch Leases (dhcp/leases/get)                 │ 2. Upsert Clientless Users
+                 │ 1. Fetch Leases & Reservations                    │ 2. Upsert Clientless Users
+                 │    (dhcp/leases/list, dhcp/scopes/list)          │
                  └──────────────────►  technitium-sophos-sync  ──────┘
                                         - Hostname Sanitization
                                         - Disambiguation & Conflict Checks
                                         - Dry-Run & Safety Validation
 ```
 
-1. **Lease Extraction**: Queries Technitium's REST API (`/api/dhcp/leases/get`) to retrieve active and static DHCP lease records.
+1. **Lease & Reservation Extraction**: Queries Technitium's REST API (`/api/dhcp/leases/list` for active leases and `/api/dhcp/scopes/list` for static scope reservations) to retrieve both active client leases and reserved IP assignments (including offline and static-IP devices).
 2. **Sanitization & Resolution**:
    - Sanitizes hostnames to comply with Sophos Firewall naming rules (handling special characters, spaces, and length restrictions).
    - Resolves MAC and hostname collisions with automatic suffixing and conflict checks.
@@ -50,10 +51,10 @@ Without automated synchronization:
 
 ## Features
 
-- **Automated Synchronization**: Fetches DHCP active leases from Technitium API and maps them to Clientless Users in Sophos Firewall.
+- **Automated Synchronization**: Fetches DHCP active leases and static scope reservations from Technitium API and maps them to Clientless Users in Sophos Firewall.
+- **Static Lease & Reservation Support**: Option to restrict synchronization exclusively to reserved/static DHCP leases or sync all active and reserved leases (including offline or static-IP machines).
 - **Dry-Run Mode**: Inspect changes that would be made before committing any changes to Sophos Firewall.
 - **Daemon / One-Shot Modes**: Run as a one-time cron job or a background daemon with configurable polling intervals.
-- **Static Lease Filtering**: Option to restrict synchronization exclusively to reserved/static DHCP leases.
 - **Robust Sanitize Engine**: Automatically formats device hostnames to conform to Sophos Firewall naming constraints.
 - **Container Ready**: Includes lightweight Docker image and `docker-compose.yml` for effortless deployment.
 
@@ -72,7 +73,7 @@ Without automated synchronization:
 
 ### Technitium DNS Server Recommendations
 - **Dedicated API Token**: Generate a dedicated API token under **Administration -> API Tokens** named `technitium-sophos-sync`.
-- **Token Scope**: Restrict token permissions to DHCP lease read access (`dhcp/leases/get`).
+- **Token Scope**: Ensure the token has access to read DHCP leases (`/api/dhcp/leases/list`) and DHCP scope configurations (`/api/dhcp/scopes/list`).
 
 ---
 

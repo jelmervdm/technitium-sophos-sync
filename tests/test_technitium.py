@@ -28,7 +28,7 @@ def test_get_dhcp_leases_success() -> None:
     """Test successful fetching and parsing of DHCP leases."""
     client = TechnitiumClient(base_url="http://technitium.local:5380", token="secret_token")
 
-    mock_response = {
+    mock_leases_response = {
         "status": "ok",
         "response": {
             "leases": [
@@ -48,12 +48,33 @@ def test_get_dhcp_leases_success() -> None:
         },
     }
 
+    mock_scopes_response = {
+        "status": "ok",
+        "response": {
+            "scopes": [
+                {
+                    "name": "LAN Scope",
+                    "reservedLeases": [
+                        {
+                            "hostName": "offline-static-server",
+                            "ipAddress": "192.168.1.200",
+                            "hardwareAddress": "11-22-33-44-55-66",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+
     respx.get("http://technitium.local:5380/api/dhcp/leases/list").mock(
-        return_value=Response(200, json=mock_response)
+        return_value=Response(200, json=mock_leases_response)
+    )
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/list").mock(
+        return_value=Response(200, json=mock_scopes_response)
     )
 
     leases = client.get_dhcp_leases(static_leases_only=False)
-    assert len(leases) == 2
+    assert len(leases) == 3
     assert leases[0] == DHCPLease(
         name="desktop-pc",
         ip="192.168.1.50",
@@ -61,6 +82,12 @@ def test_get_dhcp_leases_success() -> None:
         is_reserved=True,
     )
     assert leases[1].is_reserved is False
+    assert leases[2] == DHCPLease(
+        name="offline-static-server",
+        ip="192.168.1.200",
+        mac="11-22-33-44-55-66",
+        is_reserved=True,
+    )
 
 
 @respx.mock
@@ -68,7 +95,7 @@ def test_get_dhcp_leases_static_only() -> None:
     """Test filtering static/reserved leases."""
     client = TechnitiumClient(base_url="http://technitium.local:5380", token="secret_token")
 
-    mock_response = {
+    mock_leases_response = {
         "status": "ok",
         "response": {
             "leases": [
@@ -88,13 +115,35 @@ def test_get_dhcp_leases_static_only() -> None:
         },
     }
 
+    mock_scopes_response = {
+        "status": "ok",
+        "response": {
+            "scopes": [
+                {
+                    "name": "LAN Scope",
+                    "reservedLeases": [
+                        {
+                            "hostName": "offline-static-nas",
+                            "ipAddress": "192.168.1.20",
+                            "hardwareAddress": "77-88-99",
+                        }
+                    ],
+                }
+            ]
+        },
+    }
+
     respx.get("http://technitium.local:5380/api/dhcp/leases/list").mock(
-        return_value=Response(200, json=mock_response)
+        return_value=Response(200, json=mock_leases_response)
+    )
+    respx.get("http://technitium.local:5380/api/dhcp/scopes/list").mock(
+        return_value=Response(200, json=mock_scopes_response)
     )
 
     leases = client.get_dhcp_leases(static_leases_only=True)
-    assert len(leases) == 1
-    assert leases[0].name == "server1"
+    assert len(leases) == 2
+    names = {l.name for l in leases}
+    assert names == {"server1", "offline-static-nas"}
 
 
 @respx.mock
@@ -110,3 +159,4 @@ def test_get_dhcp_leases_api_error() -> None:
 
     with pytest.raises(TechnitiumClientError, match="Invalid authentication token"):
         client.get_dhcp_leases()
+

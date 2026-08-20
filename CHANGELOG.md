@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3] - 2026-08-20
+
+### Added
+- Added support for fetching static DHCP scope reservations (`/api/dhcp/scopes/list`) in addition to active leases (`/api/dhcp/leases/list`).
+- Integrated static scope reservations into `TechnitiumClient.get_dhcp_leases()` with IP-based deduplication, enabling synchronization for offline devices and statically configured machines.
+
 ## [0.2.2] - 2026-08-10
 
 ### Fixed
